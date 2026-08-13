@@ -1,12 +1,12 @@
-# Local Midnight devnet for mn-scaffold
+# Local Midnight devnet for the Corridor counter
 # LOCAL DEVELOPMENT ONLY — do not expose these ports to a public network.
 # Tear down with: docker compose down -v
-name: mn-scaffold-devnet
+name: corridor-devnet
 
 services:
   node:
     image: midnightntwrk/midnight-node:1.0.0
-    container_name: mn-scaffold-node
+    container_name: corridor-node
     ports:
       - "9944:9944"
     environment:
@@ -39,7 +39,7 @@ services:
     # Do NOT bump to 4.3.4/4.4.0: those tags are pre-alpha integration builds
     # for the future ledger-9/node-2 line, not stable releases.
     image: midnightntwrk/indexer-standalone:4.3.3
-    container_name: mn-scaffold-indexer
+    container_name: corridor-indexer
     # The node healthcheck above guarantees block 1 exists before this
     # container starts (see comment there). restart: on-failure is kept as a
     # second layer for plain `docker compose up -d` flows without --wait.
@@ -81,7 +81,7 @@ services:
     # spins at 100% CPU forever after receiving /prove, with no log output.
     # Avoid 9.0.0-rc.x tags: pre-release.
     image: midnightntwrk/proof-server:8.1.0
-    container_name: mn-scaffold-proof-server
+    container_name: corridor-proof-server
     command: ["midnight-proof-server -v"]
     ports:
       - "6300:6300"

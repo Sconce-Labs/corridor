@@ -1,5 +1,9 @@
 /**
- * CLI for interacting with mn-scaffold contract
+ * CLI for interacting with the Corridor counter contract.
+ *
+ * Connects to the deployed contract, lets you "enter the corridor" (calling
+ * the enterCorridor circuit with a private entitlement witness) and read the
+ * public ledger state (passes + lastEntryTag).
  */
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
@@ -24,8 +28,9 @@ import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-j
 globalThis.WebSocket = WebSocket;
 
 // Must match the privateStateId used at deploy time so the CLI reconnects to
-// the same private state. The hello-world contract has no witnesses (empty state).
-const PRIVATE_STATE_ID = 'helloWorldPrivateState';
+// the same private state. The counter contract has no persisted witnesses
+// (the entitlement is supplied per-call), so the state is empty.
+const PRIVATE_STATE_ID = 'corridorPrivateState';
 
 const { network, config: networkConfig } = resolveNetwork();
 const WALLET = getOrCreateWallet(network);
@@ -36,7 +41,7 @@ const SEED = WALLET.seed;
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'hello-world');
+const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'counter');
 
 // Load compiled contract
 const contractPath = path.join(zkConfigPath, 'contract', 'index.js');
@@ -47,9 +52,9 @@ if (!fs.existsSync(contractPath)) {
   process.exit(1);
 }
 
-const HelloWorld = await import(pathToFileURL(contractPath).href);
+const Counter = await import(pathToFileURL(contractPath).href);
 
-const compiledContract = CompiledContract.make('hello-world', HelloWorld.Contract).pipe(
+const compiledContract = CompiledContract.make('counter', Counter.Contract).pipe(
   CompiledContract.withVacantWitnesses,
   CompiledContract.withCompiledFileAssets(zkConfigPath),
 );
@@ -85,7 +90,7 @@ async function createProviders(walletCtx: WalletContext) {
 
   return {
     privateStateProvider: levelPrivateStateProvider({
-      privateStateStoreName: 'hello-world-state',
+      privateStateStoreName: 'corridor-state',
       accountId,
       privateStoragePasswordProvider: () => privateStatePassword,
     }),
@@ -101,7 +106,7 @@ async function createProviders(walletCtx: WalletContext) {
 
 async function main() {
   console.log('\n╔══════════════════════════════════════════════════════════════╗');
-  console.log('║                   mn-scaffold CLI                           ║');
+  console.log('║                Corridor counter CLI                          ║');
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
   const rl = createInterface({ input: stdin, output: stdout });
@@ -143,9 +148,6 @@ async function main() {
     console.log(`  Balance: ${balance.toLocaleString()} tNight\n`);
 
     // Surface a faucet hint when a public-network wallet has 0 tNIGHT.
-    // Reads (option 2) work without funds, but writes (option 1) need DUST
-    // generated from registered NIGHT — without this hint the next failure
-    // mode is a confusing "Insufficient Funds" deep inside the tx builder.
     if (balance === 0n && network !== 'undeployed' && networkConfig.faucet) {
       const address = walletCtx.unshieldedKeystore.getBech32Address();
       console.log('  ⚠ Wallet has no tNight. Fund it from the faucet to send transactions:');
@@ -170,8 +172,8 @@ async function main() {
     let running = true;
     while (running) {
       console.log('─── Menu ───────────────────────────────────────────────────────');
-      console.log('  1. Store a message');
-      console.log('  2. Read current message');
+      console.log('  1. Enter corridor (prove entitlement, disclose a tag)');
+      console.log('  2. Read current ledger state (passes + last entry tag)');
       console.log('  3. Check wallet balance');
       console.log('  4. Exit\n');
 
@@ -179,11 +181,13 @@ async function main() {
 
       switch (choice.trim()) {
         case '1': {
-          const message = await rl.question('  Enter your message: ');
+          const entitlementRaw = await rl.question('  Your private entitlement (0-1000): ');
+          const entitlement = BigInt(entitlementRaw.trim());
+          const tag = await rl.question('  Entry tag to disclose: ');
           console.log('\n  Submitting transaction (this may take 30-60 seconds)...');
           try {
-            const tx = await deployed.callTx.storeMessage(message);
-            console.log(`\n  ✅ Message stored: "${message}"`);
+            const tx = await deployed.callTx.enterCorridor(entitlement, tag);
+            console.log(`\n  ✅ Corridor entry recorded!`);
             console.log(`  Transaction ID: ${tx.public.txId}`);
             console.log(`  Block height: ${tx.public.blockHeight}\n`);
           } catch (error) {
@@ -193,15 +197,16 @@ async function main() {
         }
 
         case '2': {
-          console.log('\n  Reading message from blockchain...');
+          console.log('\n  Reading contract state from blockchain...');
           try {
             const contractState = await providers.publicDataProvider.queryContractState(deployment.address);
             if (contractState) {
-              const ledgerState = HelloWorld.ledger(contractState.data);
-              const message = Buffer.from(ledgerState.message).toString();
-              console.log(`\n  📋 Current message: "${message}"\n`);
+              const ledgerState = Counter.ledger(contractState.data);
+              console.log(`\n  📋 Total corridor passes: ${ledgerState.passes}`);
+              const tag = Buffer.from(ledgerState.lastEntryTag).toString();
+              console.log(`  📋 Last entry tag: "${tag}"\n`);
             } else {
-              console.log('\n  📋 No message found (contract state empty)\n');
+              console.log('\n  📋 No contract state found\n');
             }
           } catch (error) {
             console.error('\n  ❌ Failed:', error instanceof Error ? error.message : error);

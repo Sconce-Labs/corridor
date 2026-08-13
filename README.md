@@ -111,7 +111,40 @@ and reads its ledger state back from the chain.
 
 ## Initial Idea
 
-[LEAVE PLACEHOLDER — I will fill this in manually]
+**Corridor** — a portable proof of eligibility that lets someone move through a
+payment corridor showing only that they're cleared to pass, never who they are.
+
+Today, a migrant worker or aid recipient gets onboarded the same way at every
+service they use: passport scan, liveness selfie, wait — then their sensitive
+documents sit in a second, third, fourth company's database, with no say in
+any of it. Regulators need verification, but proving you're eligible and
+revealing your entire identity have been treated as the same act. They don't
+need to be.
+
+Corridor separates the two:
+
+1. A regulated issuer (bank, licensed KYC provider, NGO) verifies someone
+   **once** and issues a credential onto **Midnight**, a privacy-preserving
+   network built for exactly this kind of confidential logic.
+2. When that person wants to use a Stellar-based service (remittance
+   corridor, aid disbursement, lending pool), they generate a
+   **zero-knowledge proof** of only the claim that service needs — *"I hold a
+   valid KYC Tier 2 credential"* — bound to that specific context so it can't
+   be replayed or linked across services.
+3. A relayer verifies the proof and posts a minimal attestation to a Soroban
+   contract, which gates the action (raises a limit, releases funds, approves
+   a borrow) without ever learning who the person is.
+
+The identity work happens on Midnight, because that's what it's built for. The
+money moves on Stellar, because that's what it's built for. Neither chain is
+asked to do the other's job.
+
+**Level 1 is the seed of this vision, scoped tightly**: one issuer, one claim,
+one consuming contract. The counter contract proves *"I hold a non-zero
+entitlement"* without revealing the entitlement — the same shape as proving
+*"I'm cleared to pass"* without revealing who you are. The relayer that will
+carry a Midnight proof into a Soroban attestation is a later, explicitly
+labeled trust assumption — not solved in this level.
 
 ## Screenshots
 

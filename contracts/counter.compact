@@ -1,0 +1,39 @@
+pragma language_version >= 0.23;
+import CompactStandardLibrary;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Corridor — Level 1: Access Counter
+//
+// A public "corridor passes" counter with a privacy twist: the caller proves
+// they are entitled to pass using a PRIVATE witness, and only a human-readable
+// entry tag is deliberately disclosed to the ledger.
+//
+// WHAT IS PUBLIC (on-chain, visible to anyone):
+//   • passes        — Counter          — total number of corridor passes granted.
+//     Anyone can read this value on the Midnight ledger; it is part of the
+//     contract's public state.
+//   • lastEntryTag  — Opaque<"string"> — the entry tag the caller chose to
+//     publish via disclose() (e.g. "tier-2-pass"). It is public BY DESIGN:
+//     the contract keeps a minimal, human-readable record of the gate being
+//     cleared without the numeric entitlement behind it.
+//
+// WHAT IS PRIVATE (private witness, never on-chain):
+//   • entitlement — Uint<0..1000> — a private witness supplied by the caller.
+//     The circuit only checks it is non-zero (assert) and never writes it to
+//     the ledger. The value itself never appears in the contract state — an
+//     observer sees only the aggregate counter, not the caller's entitlement.
+//
+// WHAT THE USER PROVES WITHOUT REVEALING:
+//   That they hold a valid entitlement to pass — without revealing what that
+//   entitlement is. disclose() is used exactly once, deliberately: it
+//   publishes only the entry tag while the entitlement itself stays private.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export ledger passes: Counter;
+export ledger lastEntryTag: Opaque<"string">;
+
+export circuit enterCorridor(entitlement: Uint<0..1000>, entryTag: Opaque<"string">): [] {
+    assert(entitlement > 0, "no corridor entitlement");
+    passes.increment(1);
+    lastEntryTag = disclose(entryTag);
+}

@@ -148,8 +148,9 @@ labeled trust assumption — not solved in this level.
 
 ## Screenshots
 
-[Deployed Address]("https://github.com/user-attachments/assets/6b9c99f6-9aaf-425f-a535-820378843df3")
-[Compile Output]("https://github.com/user-attachments/assets/166e817b-c14c-41f0-ada4-30d2d99382d5")
+* [Deployed Address](https://github.com/user-attachments/assets/6b9c99f6-9aaf-425f-a535-820378843df3)
+* [Compile Output](https://github.com/user-attachments/assets/166e817b-c14c-41f0-ada4-30d2d99382d5)
+
 
 
 

@@ -4,10 +4,10 @@
 
 ## Contract Address
 
-| Network  | Address                          |
-|----------|----------------------------------|
-| Preview  | [PASTE ADDRESS AFTER DEPLOY]     |
-| Preprod  | [PASTE ADDRESS AFTER DEPLOY]     |
+| Network  | Address                                                                                  |
+|----------|------------------------------------------------------------------------------------------|
+| Preview  | `2883f006dcf296722ac6f0da3bf46578b4dfbbc2bebf915a0fb4e302d8a89a12`                       |
+| Preprod  | *(not deployed)*                                                                          |
 
 ## What This Does
 

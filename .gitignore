@@ -49,6 +49,9 @@ coverage/
 # Private state
 *-state/
 
+# LevelDB private-state provider runtime data
+midnight-level-db/
+
 # Temporary files
 tmp/
 temp/

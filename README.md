@@ -1,156 +1,126 @@
 # Corridor
 
-> A portable proof of eligibility — this Level 1 contract is a privacy-preserving "corridor passes" counter: callers prove a private entitlement and disclose only an entry tag, while the aggregate pass count stays public on the Midnight ledger.
+> A portable proof of eligibility — prove you're cleared to pass a payment corridor, without revealing who you are.
+
+## Live Demo
+
+*[Deploy and paste live URL here]*
 
 ## Contract Address
 
-| Network  | Address                                                                                  |
-|----------|------------------------------------------------------------------------------------------|
-| Preview  | `2883f006dcf296722ac6f0da3bf46578b4dfbbc2bebf915a0fb4e302d8a89a12`                       |
-| Preprod  | *(not deployed)*                                                                          |
+| Network  | Address                                                              |
+|----------|----------------------------------------------------------------------|
+| Preprod  | *(deploy in progress — paste address here once deployed)*             |
 
 ## What This Does
 
-Corridor separates *proving you're eligible* from *revealing your identity*.
-This Level 1 contract is the first building block: a public access counter
-for a payment corridor.
+Corridor is a privacy-preserving dApp built on the Midnight Network. It lets
+someone prove they hold a valid eligibility credential for a payment corridor
+(zero-knowledge proof) **without revealing their identity or credential
+details**.
 
-- Anyone can read the **public ledger state**: `passes` (how many corridor
-  passes have been granted in total) and `lastEntryTag` (a human-readable tag
-  the caller chose to publish, e.g. `"tier-2-pass"`).
-- To register a pass, a caller invokes the `enterCorridor` circuit with a
-  **private witness** (`entitlement`) plus a tag. The circuit only checks
-  that the entitlement is non-zero, increments the public counter by a
-  constant `1`, and discloses the tag.
-- The caller's entitlement value never reaches the ledger — an observer sees
-  only that a pass was granted, never how much the caller is entitled to.
+**How it works:**
 
-This is the seed of the full Corridor vision (a portable KYC credential
-proven once and used across Stellar corridors) — Level 1 scopes it tightly
-to one issuer, one claim, one consuming contract.
+1. **Connect** your Lace wallet to the dApp.
+2. **Enter the corridor** by calling the `enterCorridor` circuit with a
+   private entitlement value and a public entry tag.
+3. The circuit generates a **zero-knowledge proof locally in your browser**
+   — your private input never leaves your device.
+4. The proof is verified and submitted on-chain. An observer sees only that a
+   pass was granted and which tag was disclosed, never *who* was granted or
+   *what* their entitlement was.
+
+**The privacy model in action:**
+
+- A migrant worker proves they hold a valid KYC credential — the corridor
+  accepts the proof without learning their name, passport number, or
+  entitlement level.
+- An aid recipient proves eligibility for a disbursement — the system gates
+  access without holding any identity documents.
 
 ## Privacy Model
 
 - **What is PUBLIC (on-chain, visible to anyone):**
-  - `passes` — `Counter`: the aggregate number of corridor passes granted.
-  - `lastEntryTag` — `Opaque<"string">`: the entry tag the caller
-    deliberately disclosed via `disclose()`.
-- **What is PRIVATE (private witness, never on-chain):**
-  - `entitlement` — `Uint<0..1000>`: a private witness supplied by the
-    caller. The circuit reads it only inside the `assert` and never writes
+  - `passes` — the aggregate number of corridor passes granted.
+  - `lastEntryTag` — the entry tag the caller deliberately disclosed (e.g.
+    `"tier-2-pass"`, `"aid-disbursement"`).
+
+- **What is PRIVATE (never on-chain):**
+  - `entitlement` — the caller's private entitlement value (0–1000), held
+    only in the wallet. The circuit checks it is non-zero but never writes
     it to the ledger.
+
 - **What the user PROVES without revealing:**
   - That they hold a non-zero entitlement to pass — without revealing the
-    entitlement's value. `disclose()` is used exactly once and deliberately:
-    to publish only the entry tag.
+    entitlement's value, their identity, or any other personal data.
+
+## Privacy Claim
+
+**On-chain observer sees:** that *someone* entered the corridor and which
+entry tag was disclosed (e.g. `"tier-2-pass"`). The aggregate pass count
+increments by 1.
+
+**On-chain observer CANNOT see:** the caller's identity, wallet address
+(the proof is shielded), entitlement value, or any personal data. The
+zero-knowledge proof is generated locally in the browser wallet — the
+entitlement never leaves the user's device.
 
 ## Tech Stack
 
-- Midnight network (privacy-preserving blockchain)
-- Compact language (zero-knowledge smart contracts)
-- Midnight.js SDK (deploy + interact from TypeScript)
-- Node.js v22, Docker (proof server + local devnet)
+- **Midnight Network** — privacy-preserving blockchain for zero-knowledge
+  smart contracts
+- **Compact Language** — zero-knowledge circuit compiler for Midnight
+  contracts
+- **Midnight.js SDK** — TypeScript SDK for wallet connection, proof
+  generation, and contract interaction
+- **DApp Connector API** — browser extension wallet integration (Lace)
+- **React + Vite** — frontend framework and build tool
+- **TypeScript** — type-safe development across contract and frontend
 
 ## Prerequisites
 
-- **Node.js v22+** (`node --version`)
-- **Docker** with Compose v2 (`docker --version`, `docker compose version`)
-- **Compact compiler** (`compact --version`, `compact compile --version`)
-- The **Midnight proof server** running on `localhost:6300` (the project's
-  `docker compose` starts one; alternatively:
-  `docker run -p 6300:6300 midnightnetwork/proof-server`)
+- [Lace wallet](https://lace.io) browser extension (Midnight wallet)
+- Node.js v22+ (`node --version`)
+- Midnight testnet tokens (tNIGHT) from the Preprod faucet
 
-## Setup
+## Run Locally
 
 ```bash
-# 1. Install dependencies
+# 1. Clone the repo
+git clone https://github.com/Sconce-Labs/corridor.git
+cd corridor
+
+# 2. Install dependencies
 npm install
 
-# 2. Compile the contract (produces contracts/managed/counter/)
+# 3. Compile the contract (requires Compact compiler)
 npm run compile
 
-# 3a. Run against the bundled local devnet (no faucet needed)
-npm run setup
+# 4. Deploy to Preprod (or use an existing deployment)
+#    You'll need tNIGHT from the Preprod faucet:
+#    https://midnight-tmnight-preprod.nethermind.dev
+npm run deploy -- --network preprod
 
-# 3b. Or deploy to the Preview testnet (you must fund the printed wallet
-#     address at the faucet — setup polls until funds arrive)
-npm run setup -- --network preview
+# 5. Start the frontend dev server
+npm run dev:frontend
 
-# 4. Interact with the deployed contract
-npm run cli
+# 6. Open http://localhost:5173 in your browser with Lace wallet installed
 ```
 
-Notes:
+**Environment variables:**
 
-- The active network is sticky: `npm run network preview` switches, and any
-  command run with `--network <name>` also makes that network active.
-- Public-network wallets are generated on first use (24-word BIP-39 phrase,
-  printed once and stored in `.midnight-state.json`, gitignored). Back it up.
-- Faucets: Preview `https://midnight-tmnight-preview.nethermind.dev`,
-  Preprod `https://midnight-tmnight-preprod.nethermind.dev`.
-- `docker compose down -v` tears down the local devnet (containers, volumes).
-
-## Run Tests
+Copy `.env.example` to `.env` and set your deployed contract address:
 
 ```bash
-npm test
+cp .env.example .env
+# Edit .env and set VITE_CONTRACT_ADDRESS to your deployed address
 ```
 
-The suite exercises the compiled contract in-memory (no chain needed):
+## Demo Video
 
-- **Circuit logic** — deterministic initial state; zero-entitlement calls
-  are rejected and leave the ledger untouched.
-- **State transitions** — `enterCorridor` increments `passes` by exactly 1
-  and discloses the tag; passes accumulate across multiple entries.
-- **Privacy** — the private `entitlement` witness never appears in the
-  ledger; different entitlements produce identical public deltas, and only
-  the deliberately disclosed tag is published.
-
-Also available: `npm run test:e2e` — reconnects to the deployed contract
-and reads its ledger state back from the chain.
-
-## Initial Idea
-
-**Corridor** — a portable proof of eligibility that lets someone move through a
-payment corridor showing only that they're cleared to pass, never who they are.
-
-Today, a migrant worker or aid recipient gets onboarded the same way at every
-service they use: passport scan, liveness selfie, wait — then their sensitive
-documents sit in a second, third, fourth company's database, with no say in
-any of it. Regulators need verification, but proving you're eligible and
-revealing your entire identity have been treated as the same act. They don't
-need to be.
-
-Corridor separates the two:
-
-1. A regulated issuer (bank, licensed KYC provider, NGO) verifies someone
-   **once** and issues a credential onto **Midnight**, a privacy-preserving
-   network built for exactly this kind of confidential logic.
-2. When that person wants to use a Stellar-based service (remittance
-   corridor, aid disbursement, lending pool), they generate a
-   **zero-knowledge proof** of only the claim that service needs — *"I hold a
-   valid KYC Tier 2 credential"* — bound to that specific context so it can't
-   be replayed or linked across services.
-3. A relayer verifies the proof and posts a minimal attestation to a Soroban
-   contract, which gates the action (raises a limit, releases funds, approves
-   a borrow) without ever learning who the person is.
-
-The identity work happens on Midnight, because that's what it's built for. The
-money moves on Stellar, because that's what it's built for. Neither chain is
-asked to do the other's job.
-
-**Level 1 is the seed of this vision, scoped tightly**: one issuer, one claim,
-one consuming contract. The counter contract proves *"I hold a non-zero
-entitlement"* without revealing the entitlement — the same shape as proving
-*"I'm cleared to pass"* without revealing who you are. The relayer that will
-carry a Midnight proof into a Soroban attestation is a later, explicitly
-labeled trust assumption — not solved in this level.
+*[Record and paste link here — see Step 7 checklist]*
 
 ## Screenshots
 
 * [Deployed Address](https://github.com/user-attachments/assets/6b9c99f6-9aaf-425f-a535-820378843df3)
 * [Compile Output](https://github.com/user-attachments/assets/166e817b-c14c-41f0-ada4-30d2d99382d5)
-
-
-
-

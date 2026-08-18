@@ -1,0 +1,250 @@
+:root {
+  --bg: #0d0d14;
+  --surface: #161622;
+  --surface-2: #1e1e30;
+  --border: #2a2a3e;
+  --text: #e2e2ec;
+  --text-muted: #8888aa;
+  --accent: #6e4bf5;
+  --accent-hover: #7f5cff;
+  --danger: #e5484d;
+  --success: #3dd68c;
+  --radius: 12px;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: var(--mono);
+  background: var(--surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+/* ─── Layout ──────────────────────────────────────────────────────────────── */
+
+.app {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.app-header { text-align: center; }
+.logo { font-size: 48px; margin-bottom: 8px; }
+.app-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.tagline { color: var(--text-muted); margin-top: 6px; font-size: 15px; }
+
+.app-main { display: flex; flex-direction: column; gap: 24px; }
+
+.app-footer {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+/* ─── Steps ──────────────────────────────────────────────────────────────── */
+
+.step {
+  position: relative;
+}
+
+.step-number {
+  position: absolute;
+  top: -12px;
+  left: 24px;
+  background: var(--accent);
+  color: white;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 1;
+}
+
+/* ─── Card ────────────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.card-header h2 { font-size: 16px; font-weight: 600; }
+
+.card-body { padding: 20px; }
+.card-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.card-footer .hint { font-size: 12px; color: var(--text-muted); margin: 0; }
+
+.card-actions { padding: 0 20px 20px; }
+
+/* ─── Status badge ───────────────────────────────────────────────────────── */
+
+.status-badge {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.status-badge.connected {
+  background: rgba(61, 214, 140, 0.12);
+  color: var(--success);
+}
+.status-badge.disconnected {
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--danger);
+}
+
+/* ─── Address box ────────────────────────────────────────────────────────── */
+
+.address-box {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+.address-box.disconnected { opacity: 0.6; }
+.label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.address { font-family: var(--mono); font-size: 14px; color: #a78bfa; word-break: break-all; }
+.address-full { font-family: var(--mono); font-size: 11px; color: var(--text-muted); word-break: break-all; margin-top: 2px; }
+.hint { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+.mt-2 { margin-top: 8px; }
+
+/* ─── Forms ──────────────────────────────────────────────────────────────── */
+
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.form-group input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--mono);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-group input:focus { border-color: var(--accent); }
+.form-group input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.privacy-label {
+  font-size: 12px;
+  color: var(--success);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────────── */
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.btn-danger:hover:not(:disabled) { background: rgba(229, 72, 77, 0.1); }
+
+.btn-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 4px;
+  margin-left: 8px;
+}
+
+.full-width { width: 100%; }
+
+/* ─── Error banner ───────────────────────────────────────────────────────── */
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(229, 72, 77, 0.1);
+  border-top: 1px solid rgba(229, 72, 77, 0.2);
+  padding: 12px 20px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+/* ─── Result box ─────────────────────────────────────────────────────────── */
+
+.result-box {
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+  padding: 16px 20px;
+}
+.result-box h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--success); }
+.result-table { width: 100%; font-size: 13px; }
+.result-table td { padding: 4px 0; }
+.result-table .label { color: var(--text-muted); text-align: left; }
+.result-table .value { color: var(--text); font-family: var(--mono); text-align: right; }

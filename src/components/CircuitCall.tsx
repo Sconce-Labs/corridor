@@ -176,8 +176,8 @@ const CircuitCall: React.FC<CircuitCallProps> = ({
           disabled={!isConnected || callState === 'proving' || callState === 'submitting'}
         >
           {callState === 'idle' && 'Generate Proof & Enter Corridor'}
-          {callState === 'proving' && '⏳ Generating ZK proof locally…'}
-          {callState === 'submitting' && '⏳ Submitting on-chain…'}
+          {callState === 'proving' && (<> <span className="spinner" /> Generating ZK proof locally…</>)}
+          {callState === 'submitting' && (<> <span className="spinner" /> Submitting on-chain…</>)}
           {callState === 'success' && '✅ Done — call again'}
           {callState === 'error' && '❌ Failed — retry'}
         </button>

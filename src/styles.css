@@ -248,3 +248,65 @@ code {
 .result-table td { padding: 4px 0; }
 .result-table .label { color: var(--text-muted); text-align: left; }
 .result-table .value { color: var(--text); font-family: var(--mono); text-align: right; }
+
+/* ─── Loading spinner ────────────────────────────────────────────────────── */
+
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Mobile responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .app {
+    padding: 24px 16px 40px;
+    gap: 24px;
+  }
+
+  .logo { font-size: 36px; }
+  .app-header h1 { font-size: 24px; }
+  .tagline { font-size: 13px; }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 14px 16px;
+  }
+
+  .card-body { padding: 16px; }
+  .card-footer { padding: 10px 16px; }
+  .card-actions { padding: 0 16px 16px; }
+
+  .error-banner {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+
+  .result-box { padding: 14px 16px; }
+
+  .btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .address-full { font-size: 10px; }
+}
+
+@media (max-width: 380px) {
+  .app { padding: 16px 12px 32px; }
+  .step-number { left: 12px; }
+  .address { font-size: 12px; }
+}

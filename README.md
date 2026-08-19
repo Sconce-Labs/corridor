@@ -1,5 +1,7 @@
 # Corridor
 
+[![CI](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml/badge.svg)](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml)
+
 > A portable proof of eligibility — prove you're cleared to pass a payment corridor, without revealing who you are.
 
 ## Live Demo
@@ -83,7 +85,7 @@ entitlement never leaves the user's device.
 - Node.js v22+ (`node --version`)
 - Midnight testnet tokens (tNIGHT) from the Preprod faucet
 
-## Run Locally
+## Setup & Run Locally
 
 ```bash
 # 1. Clone the repo
@@ -115,6 +117,30 @@ Copy `.env.example` to `.env` and set your deployed contract address:
 cp .env.example .env
 # Edit .env and set VITE_CONTRACT_ADDRESS to your deployed address
 ```
+
+## Run Tests
+
+```bash
+npm test
+```
+
+## CI/CD
+
+The project uses GitHub Actions for continuous integration. The pipeline runs
+on every push to `main` and on pull requests:
+
+1. **Checkout** — pulls the latest code
+2. **Install dependencies** — `npm install`
+3. **Install Compact compiler** — via the official `setup-compact-action`
+4. **Compile contract** — `compact compile` verifies the contract builds
+5. **Run tests** — all 8+ unit tests must pass
+
+If any step fails, the pipeline breaks and a red badge appears in the README.
+See the workflow at `.github/workflows/ci.yml`.
+
+## Product Proposal
+
+See [PROPOSAL.md](./PROPOSAL.md) for the product proposal.
 
 ## Demo Video
 

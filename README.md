@@ -6,7 +6,7 @@
 
 ## Live Demo
 
-*[Deploy and paste live URL here]*
+https://corridor-pink.vercel.app
 
 ## Contract Address
 

@@ -4,6 +4,7 @@ import CircuitCall from './components/CircuitCall';
 import { useMidnight } from './hooks/useMidnight';
 
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS as string;
+const NETWORK = (import.meta.env.VITE_NETWORK_ID as string) || 'preview';
 
 const App: React.FC = () => {
   const {
@@ -25,6 +26,7 @@ const App: React.FC = () => {
         <p className="tagline">
           Prove you're cleared to pass — without revealing who you are.
         </p>
+        <p className="network-badge">Network: {NETWORK}</p>
       </header>
 
       <main className="app-main">

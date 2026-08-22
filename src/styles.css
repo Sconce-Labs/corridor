@@ -57,6 +57,17 @@ code {
   -webkit-text-fill-color: transparent;
 }
 .tagline { color: var(--text-muted); margin-top: 6px; font-size: 15px; }
+.network-badge {
+  display: inline-block;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-size: 12px;
+  font-family: var(--mono);
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-top: 10px;
+}
 
 .app-main { display: flex; flex-direction: column; gap: 24px; }
 

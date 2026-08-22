@@ -40,7 +40,7 @@ interface MidnightProvingProvider {
   proveTx: (unprovenTx: unknown) => Promise<unknown>;
 }
 
-const NETWORK_ID = 'testnet-02'; // Preprod network ID
+const NETWORK_ID = (import.meta.env.VITE_NETWORK_ID as string) || 'preview';
 
 function getWalletProviders(): MidnightInitialAPI[] {
   if (!window.midnight) return [];

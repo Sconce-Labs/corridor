@@ -92,14 +92,22 @@ export function useMidnight() {
       const api = await wallet.connect(NETWORK_ID);
       connectedApiRef.current = api;
 
-      const [unshielded, shielded, dust] = await Promise.all([
+      const [unshielded, dust] = await Promise.all([
         api.getUnshieldedAddress(),
-        api.getShieldedAddress(),
         api.getUnshieldedBalances(),
       ]);
 
+      // Shielded address may not be available on all wallets (e.g. Lace).
+      let shieldedAddr: string | null = null;
+      try {
+        if (typeof (api as any).getShieldedAddress === 'function') {
+          const s = await (api as any).getShieldedAddress();
+          shieldedAddr = s?.shieldedAddress ?? null;
+        }
+      } catch { /* not supported */ }
+
       setWalletAddress(unshielded.unshieldedAddress);
-      setShieldedAddress(shielded.shieldedAddress);
+      setShieldedAddress(shieldedAddr);
       setIsConnected(true);
       setUnshieldedBalances(dust);
     } catch (err) {
@@ -135,12 +143,12 @@ export function useMidnight() {
     const api = connectedApiRef.current;
     if (!api) return;
     try {
-      const [unshielded, shielded] = await Promise.all([
-        api.getUnshieldedBalances(),
-        api.getShieldedBalances(),
-      ]);
+      const unshielded = await api.getUnshieldedBalances();
       setUnshieldedBalances(unshielded);
-      setShieldedBalances(shielded);
+      if (typeof (api as any).getShieldedBalances === 'function') {
+        const shielded = await (api as any).getShieldedBalances();
+        setShieldedBalances(shielded);
+      }
     } catch {
       // Silently ignore — balances may fail if wallet session expired.
     }

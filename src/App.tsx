@@ -15,7 +15,6 @@ const App: React.FC = () => {
     connect,
     disconnect,
     clearError,
-    _connectedApi,
   } = useMidnight();
 
   return (
@@ -48,7 +47,6 @@ const App: React.FC = () => {
           <CircuitCall
             isConnected={isConnected}
             contractAddress={CONTRACT_ADDRESS}
-            connectedApi={_connectedApi}
           />
         </section>
       </main>

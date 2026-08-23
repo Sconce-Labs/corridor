@@ -111,12 +111,18 @@ export function useMidnight() {
       setIsConnected(true);
       setUnshieldedBalances(dust);
     } catch (err) {
+      console.error('[Corridor] Wallet connection error:', err);
       if (isDAppConnectorError(err)) {
         const code = (err as { code?: string }).code;
-        if (code === 'Rejected') {
-          setError('Connection rejected by user.');
+        const reason = (err as { reason?: string }).reason ?? '';
+        if (code === 'Rejected' && !reason) {
+          // Wallet rejected without explanation — usually a network mismatch.
+          setError(
+            `Wallet rejected the connection. Make sure your Lace wallet is set to the "${NETWORK_ID}" network. ` +
+            `Open Lace → Settings → Network, select "${NETWORK_ID}", then try again.`,
+          );
         } else {
-          setError(`Wallet error: ${(err as { reason?: string }).reason ?? 'unknown'}`);
+          setError(`Wallet error [${code ?? '?'}]: ${reason || JSON.stringify(err)}`);
         }
       } else {
         setError(`Connection failed: ${(err as Error).message}`);

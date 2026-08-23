@@ -145,7 +145,7 @@ See [PROPOSAL.md](./PROPOSAL.md) for the product proposal.
 
 ## Demo Video
 
-*[Record and paste link here — see Step 7 checklist]*
+[Demo Video — wallet connect + circuit call](https://drive.google.com/file/d/1r3sODDlYRIyHeKZhMAHLJtjTa906lw-f/view?usp=drive_link)
 
 ## Screenshots
 

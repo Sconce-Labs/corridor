@@ -89,7 +89,10 @@ export function useMidnight() {
       }
       walletRef.current = wallet;
 
+      console.log(`[Corridor] Requesting connection to network: ${NETWORK_ID}`);
+      console.log(`[Corridor] Wallet: ${wallet.name} (${wallet.rdns}), API v${wallet.apiVersion}`);
       const api = await wallet.connect(NETWORK_ID);
+      console.log('[Corridor] Connected! Fetching addresses...');
       connectedApiRef.current = api;
 
       const [unshielded, dust] = await Promise.all([
@@ -97,15 +100,24 @@ export function useMidnight() {
         api.getUnshieldedBalances(),
       ]);
 
-      // Shielded address may not be available on all wallets (e.g. Lace).
+      // Shielded address — the spec uses getShieldedAddresses() (plural).
       let shieldedAddr: string | null = null;
       try {
-        if (typeof (api as any).getShieldedAddress === 'function') {
+        if (typeof (api as any).getShieldedAddresses === 'function') {
+          const s = await (api as any).getShieldedAddresses();
+          shieldedAddr = s?.shieldedAddress ?? null;
+          console.log('[Corridor] Shielded address:', shieldedAddr);
+        } else if (typeof (api as any).getShieldedAddress === 'function') {
           const s = await (api as any).getShieldedAddress();
           shieldedAddr = s?.shieldedAddress ?? null;
+          console.log('[Corridor] Shielded address:', shieldedAddr);
         }
-      } catch { /* not supported */ }
+      } catch (e) {
+        console.warn('[Corridor] Could not get shielded address:', e);
+      }
 
+      console.log('[Corridor] Unshielded address:', unshielded.unshieldedAddress);
+      console.log('[Corridor] Balances:', dust);
       setWalletAddress(unshielded.unshieldedAddress);
       setShieldedAddress(shieldedAddr);
       setIsConnected(true);

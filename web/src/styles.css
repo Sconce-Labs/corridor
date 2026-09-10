@@ -493,10 +493,7 @@ section.band > .wrap > p.sub {
   white-space: nowrap;
 }
 .built .heart {
-  background: var(--grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent-2);
   font-weight: 700;
 }
 .spin {

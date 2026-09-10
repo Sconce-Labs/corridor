@@ -88,7 +88,7 @@ expiry** — the issuer stops re-signing.
 
 | Component | Repo / path | State | Next |
 |-----------|-------------|-------|------|
-| Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 25 host tests (Option B ABI) | testnet redeploy (M2), real verifier (M3) |
+| Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 25 host tests; deployed + smoke-verified on testnet (Option B) | real verifier (M3) |
 | Public-input ABI (`PI_*`, 9 inputs) | corridor-contracts `crates/corridor_types` + `ABI.md` | ✅ source of truth | keep circuit + SDK in sync |
 | Noir circuit (Grumpkin Schnorr verify) | corridor-circuits | ✅ 18 `nargo test`, `nargo execute` solves a real signed fixture | pin `bb` when beta.26 gets a mapping |
 | Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | — |
@@ -97,24 +97,24 @@ expiry** — the issuer stops re-signing.
 | Real UltraHonk verifier | corridor-contracts | ❌ | wire `indextree/ultrahonk_soroban_contract` (M3) |
 | Midnight issuer registry | this repo `contracts/corridor.compact` | ✅ compiles in CI (6 circuits) | simulator tests + Preprod (M4) |
 | Fee-sponsoring tx-relayer | spec `docs/TX_RELAYER.md` | ❌ | build (M6) |
-| Frontend | this repo | ⚠️ stale scaffold, no source in repo | build fresh (M6) |
+| Frontend | this repo `web/` | ✅ site + live reads + `is_cleared` checker | holder/operator flows (M6) |
 
-### Testnet deployment (Stellar) — STALE, needs redeploy
+### Testnet deployment (Stellar) — Option B, 2026-09-10
 
-The addresses below ran the **pre-Option-B ABI** and no longer match the
-contracts. Redeploying is **M2**.
-
-| Contract | Address (pre-Option-B) |
-|----------|------------------------|
-| `corridor_registry` | `CB6LZV6TJN6YZ2O7FVLNRCJMRVBXCDG6JFFREHGY2BD5K4EYWJ6WKT2K` |
-| `corridor_attestation` | `CCAGXABIZWHNLA754LSQCFPA35VLJZEH24MD5OGJNIEMFQHZ7LWQD5AR` |
-| `verifier_mock` | `CDT4ZVOIAI5JN4TC3WZYIBJ3NOJENZWKD2ZNOTSVVZBZBZ5GMOSNJEQP` |
+| Contract | Address |
+|----------|---------|
+| `corridor_registry` | `CAV6DMVCBOU5DGQVFSPU2UIF62LNFW7PWAGC7HCPHVIUO6SWRPSX3B65` |
+| `corridor_attestation` | `CD76SRVQS6QSDFL2DYWGPK2JGWQPZO4NBFOGRDR5UWLGCABLBONNUXK5` |
+| `verifier_mock` | `CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y` |
 
 Deployer key `corridor`: `GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR2O`
-(testnet only, in the local `stellar` CLI keystore). Record:
-`corridor-contracts/deployments/testnet.json` (also stale). `scripts/demo.sh`
-and `scripts/deploy_testnet.sh` still reference `post_root` — fix during the
-redeploy.
+(testnet only, in the local `stellar` CLI keystore, ~9997 XLM). Record:
+`corridor-contracts/deployments/testnet.json`. Smoke-verified `register →
+enter → is_cleared == true`, replay rejected. `scripts/demo.sh` is Option B;
+`scripts/deploy_testnet.sh` was already root-free. The demo corridor id is
+`0x…04`, min_tier 2, min_cred_epoch 1, one accepted issuer (`0x…07`).
+`corridor-sdk/src/networks.ts` `TESTNET` and `web/src/config.ts` point here —
+update all three together on the next redeploy.
 
 ---
 
@@ -160,10 +160,12 @@ redeploy.
    Option B the holder never touches Midnight — only issuers and the admin do.
    Trim this in M4.
 
-9. **The Vercel app is orphaned.** `corridor-pink.vercel.app` serves a stale
-   Vite build; no frontend source exists in any repo. Its favicon is a
-   placeholder 🌑 emoji. The real brand mark is in `assets/` (see
-   `assets/README.md`). M6 builds a fresh frontend.
+9. **The frontend lives in `web/`** (Vite + React + `@stellar/stellar-sdk`).
+   `../vercel.json` builds it (`npm --prefix web`). It reads the live testnet
+   deployment and has an operator `is_cleared` checker. Favicon is
+   `web/public/favicon.svg` (copied from `assets/`). After a contract redeploy,
+   update `web/src/config.ts`. The old orphaned Vite build (🌑 favicon) is
+   replaced on the next Vercel deploy.
 
 10. **Windows GNU linker.** `corridor-contracts/.cargo/config.toml` adds
     `-Wl,--exclude-all-symbols` to get past `ld`'s "export ordinal too large" on
@@ -180,8 +182,8 @@ redeploy.
 - **Org avatar and repo social previews have no GitHub API** — upload manually:
   org avatar at `github.com/organizations/Sconce-Labs/settings/profile`
   (`logo.png`); per-repo social preview in each repo's Settings.
-- The deployed app's 🌑 favicon is a Midnight-era placeholder — replace with
-  `assets/favicon.svg` when the frontend is rebuilt (M6).
+- The `web/` frontend uses `web/public/favicon.svg` (the real mark). The old
+  deployed 🌑 placeholder is gone once the new `web/` build ships to Vercel.
 
 ---
 
@@ -197,14 +199,15 @@ redeploy.
 
 ## 8. Immediate next actions (engineering)
 
-1. **M2 redeploy** — `cd corridor-contracts`, rebuild wasm, deploy
-   `verifier_mock` + `corridor_registry` + `corridor_attestation` to testnet,
-   refresh `deployments/testnet.json`, fix `scripts/demo.sh` +
-   `scripts/deploy_testnet.sh` (no `post_root`), re-run the end-to-end smoke
-   with an Option B proof from `buildWitness`.
-2. **M3 start** — vendor `indextree/ultrahonk_soroban_contract` into
+1. **M3 start** — vendor `indextree/ultrahonk_soroban_contract` into
    `corridor-contracts/contracts/ultrahonk_verifier` behind the `Verifier`
-   interface; generate the VK from the circuit; end-to-end proof → `enter`.
-3. **M4** — `corridor.compact` simulator tests + Preprod deploy; trim
+   interface; generate the VK from the circuit; deploy it; set `vk_hash` on a
+   test policy; end-to-end proof (from `buildWitness`) → `enter` on testnet.
+2. **M4** — `corridor.compact` simulator tests + Preprod deploy; trim
    `midnight/` to the issuer/admin flows.
-4. **M5** — issuer CLI: KYC result → `issueCredential`, with CSPRNG enforcement.
+3. **M5** — issuer CLI: KYC result → `issueCredential`, with CSPRNG enforcement.
+4. **M6** — the fee-sponsoring tx-relayer (`docs/TX_RELAYER.md`), then wire the
+   `web/` site's checker to a full holder flow.
+
+_M1 (Stellar core) and M2 (Option B circuit + testnet redeploy) are done — the
+stack is live at the addresses in §4._

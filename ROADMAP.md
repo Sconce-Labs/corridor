@@ -20,7 +20,7 @@ archived, all with CI:
 
 | Layer | Built | Not built |
 |-------|-------|-----------|
-| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (`register`/`update_policy`/`set_min_cred_epoch`/two-step admin/events), attestation (`enter`/`is_cleared`/nullifier ledger/TTL/events), mock verifier, `ultrahonk_verifier` skeleton, typed ABI, **25 host tests (Option B)**, Poseidon2 conformance | real UltraHonk verification (M3), **testnet redeploy for the Option B ABI (M2)**, payout-push mode, gas benchmarks |
+| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (`register`/`update_policy`/`set_min_cred_epoch`/two-step admin/events), attestation (`enter`/`is_cleared`/nullifier ledger/TTL/events), mock verifier, `ultrahonk_verifier` skeleton, typed ABI, **25 host tests**, **deployed + smoke-verified on testnet (Option B)**, Poseidon2 conformance | real UltraHonk verification (M3), payout-push mode, gas benchmarks |
 | Noir circuit ([corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)) | `eligibility`/`tags`/`conformance` modules, Grumpkin **Schnorr signature verification**, `nargo check`+`test` (18 tests, all failure modes), `nargo execute` on a real signed fixture, gate-count in CI (73 ACIR opcodes), best-effort `bb prove/verify` | pinned `bb` once beta.26 gets a published mapping |
 | Midnight / Compact (this repo `contracts/`) | **issuer registry** (`registerIssuer`/`bumpEpoch`/`reportAttestations`), issuer-auth via control-secret hash, **compiles in CI (6 circuits)** | simulator tests, Preprod deploy (M4) |
 | SDK ([corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)) | `getPolicy`/`isCleared`/`passes`/`passRecord` (live), `buildWitness`, `verifyWitnessLocally`, **Grumpkin signer + `issueCredential`**, `makeFixture`, 23 tests, examples | `requestProof`/`enter` (need M3 + tx-relayer), issuer CLI |
@@ -39,7 +39,7 @@ archived, all with CI:
   `is_cleared == true`; replay rejected with `NullifierUsed`.
 - ⚠️ Superseded by the Option B ABI — needs the M2 redeploy.
 
-### M2 — Option B circuit + testnet redeploy
+### M2 — Option B circuit + testnet redeploy  ·  ✅ done (2026-09-10)
 - ✅ Circuit rewritten for issuer-signed statements: Grumpkin **Schnorr
   verification**, no Merkle path. 18 `nargo test`, `nargo execute` solves a real
   signed fixture. 73 ACIR opcodes (was ~3200).
@@ -49,12 +49,13 @@ archived, all with CI:
 - ✅ Contracts rebuilt for the 9-input Option B ABI (`min_cred_epoch` replaces
   the two roots); 25 host tests.
 - ✅ Poseidon2 conformance still asserted circuit ⇄ SDK ⇄ Soroban.
-- ⏳ **Redeploy `corridor_registry` + `corridor_attestation` + `verifier_mock`
-  to testnet against the new ABI; refresh `deployments/testnet.json`;
-  re-run the end-to-end smoke (`register` → `enter` → `is_cleared`).**
-- ⏳ Update `scripts/demo.sh` / `scripts/deploy_testnet.sh` (drop `post_root`).
-- **Done when:** an Option B proof from `buildWitness` verifies through
-  `enter()` on a freshly deployed testnet stack.
+- ✅ **Redeployed to testnet** (`deployments/testnet.json`); smoke-verified
+  `register → enter` (PassGranted) `→ is_cleared == true`, replay rejected.
+  `scripts/demo.sh` updated for the 9-input vector.
+- ✅ `corridor-sdk` `TESTNET` preset and `web/src/config.ts` point at the new
+  addresses; the site reads them live.
+- ⏳ Still with the mock verifier — a real Option B *proof* through `enter()`
+  waits on M3.
 
 ### M3 — Real verifier on Stellar
 - Vendor / adapt `indextree/ultrahonk_soroban_contract` as
@@ -97,12 +98,12 @@ archived, all with CI:
 - ⏳ **Fee-sponsoring tx-relayer** (`docs/TX_RELAYER.md`): a new focused service
   that submits `enter` so the holder's Stellar account stays unlinked from the
   pass. `corridor-sdk.enter()` targets it.
-- Frontend (this repo — the deployed `corridor-pink.vercel.app` is a stale
-  single-chain scaffold with no source in the repo; build fresh):
-  - **Holder app** — hold a credential, pick a corridor, generate + submit a
+- Frontend (`web/`, live at `corridor-pink.vercel.app`):
+  - ✅ public site + live testnet reads + operator `is_cleared` checker.
+  - ⏳ **Holder app** — hold a credential, pick a corridor, generate + submit a
     proof, see the pass.
-  - **Operator console** — register/'update a corridor policy, watch passes,
-    pause.
+  - ⏳ **Operator console** — register / update a corridor policy, watch passes,
+    pause, bump `min_cred_epoch`.
 - Nullifier archival design (state rent) implemented.
 - **Done when:** a non-technical user completes the holder flow on testnet
   end-to-end.

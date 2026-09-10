@@ -1,0 +1,31 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Corridor">
+  <!-- Corridor — a lit passage receding to a point, on a night ground. -->
+  <defs>
+    <linearGradient id="rim" x1="96" y1="96" x2="416" y2="416" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DF9E6"/>
+      <stop offset="0.55" stop-color="#41C7EE"/>
+      <stop offset="1" stop-color="#2A7DE1"/>
+    </linearGradient>
+    <radialGradient id="core" cx="256" cy="248" r="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EAFBF7"/>
+      <stop offset="1" stop-color="#41C7EE"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="256" cy="256" r="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12314A" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#0A0F1C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="#0A0F1C"/>
+  <circle cx="256" cy="256" r="230" fill="url(#glow)"/>
+
+  <!-- the passage: nested rounded squares converging toward the vanishing point -->
+  <g stroke="url(#rim)" stroke-linejoin="round" fill="none">
+    <rect x="94"  y="94"  width="324" height="324" rx="76" stroke-width="15" opacity="0.95"/>
+    <rect x="146" y="146" width="220" height="220" rx="54" stroke-width="13" opacity="0.66"/>
+    <rect x="192" y="192" width="128" height="128" rx="36" stroke-width="11" opacity="0.42"/>
+  </g>
+
+  <!-- vanishing point: the light at the end of the corridor -->
+  <circle cx="256" cy="256" r="21" fill="url(#core)"/>
+</svg>

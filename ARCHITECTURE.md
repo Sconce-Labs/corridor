@@ -13,9 +13,9 @@ revealing their identity**.
 
 > **Status of this document:** it describes the **Option B** design, which is
 > implemented across the circuit, SDK and Soroban contracts (25 + 18 + 23 tests
-> green). Still mocked: on-chain ZK verification (M3). Still unbuilt: the
-> fee-sponsoring tx-relayer (M6) and a frontend (M6). The testnet deployment
-> predates Option B and needs a redeploy (M2).
+> green) and **deployed to Stellar testnet** (addresses in §5). Still mocked:
+> on-chain ZK verification (M3). Still unbuilt: the fee-sponsoring tx-relayer
+> and the holder/operator flows in the `web/` frontend (M6).
 
 The design is **Stellar-native**. The only cross-network dependency is a plain
 public **issuer directory** on Midnight — no shared roots, no state sync, no
@@ -262,6 +262,15 @@ No `post_root`, no relayer allowlist.
 - **Push**: operator registers a Stellar Asset Contract + recipient rule;
   `enter()` performs the `transfer` in the same transaction. Later milestone.
 
+**Deployed to testnet** (2026-09-10, Option B ABI —
+`deployments/testnet.json`):
+
+| Contract | Address |
+|----------|---------|
+| `corridor_registry` | `CAV6DMVCBOU5DGQVFSPU2UIF62LNFW7PWAGC7HCPHVIUO6SWRPSX3B65` |
+| `corridor_attestation` | `CD76SRVQS6QSDFL2DYWGPK2JGWQPZO4NBFOGRDR5UWLGCABLBONNUXK5` |
+| `verifier_mock` (M3 placeholder) | `CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y` |
+
 ---
 
 ## 6. Trust assumptions (stated plainly)
@@ -309,6 +318,7 @@ Corridor is split across repos ([`COMPONENTS.md`](./COMPONENTS.md)):
 Sconce-Labs/corridor            ← hub: this file, README, PROPOSAL, ROADMAP,
 │                                  HANDOFF, DRIPS, docs/
 ├── contracts/corridor.compact  ← Midnight issuer registry
+├── web/                        ← public site + operator clearance checker (Vite/React → Vercel)
 └── midnight/                   ← Midnight wallet + deploy tooling (predates Option B)
 
 Sconce-Labs/corridor-contracts  ← Soroban workspace (Rust); owns ABI.md
@@ -324,9 +334,9 @@ Sconce-Labs/corridor-relayer    ← ARCHIVED (Option B removed root sync)
 See [`ROADMAP.md`](./ROADMAP.md). Short version:
 
 1. **M1 — Soroban core** (registry + attestation + mock verifier + tests) ✅
-2. **M2 — Circuit + testnet redeploy** (Option B circuit ✅; redeploy contracts + refresh `deployments/testnet.json`)
+2. **M2 — Option B circuit + testnet redeploy** (circuit ✅; contracts deployed + smoke-verified; site reads them live) ✅
 3. **M3 — Real verifier** (wire `ultrahonk_verifier`, end-to-end proof → verify on testnet)
 4. **M4 — Midnight** (`corridor.compact` issuer registry ✅ compiles; simulator tests + Preprod deploy)
 5. **M5 — Issuer SDK & tooling** (KYC → sign flow, CSPRNG enforcement, key management)
-6. **M6 — Tx-relayer + frontend** (`docs/TX_RELAYER.md`; holder + operator UIs)
+6. **M6 — Tx-relayer + frontend flows** (`docs/TX_RELAYER.md`; holder + operator UIs on top of the `web/` site)
 7. **M7 — Pilot** (one real corridor operator on testnet, auditor mode live)

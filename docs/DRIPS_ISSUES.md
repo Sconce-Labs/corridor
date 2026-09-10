@@ -9,7 +9,7 @@ The backlog is now **live as GitHub issues**, one per repo, labelled `drips` +
 
 | Repo | Themes (post Option B) |
 |------|-----------------------|
-| [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts/issues) | UltraHonk verifier (M3), **testnet redeploy for the Option B ABI (M2)**, gas benchmarks, payout-push, nullifier archival, fuzz the decoder |
+| [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts/issues) | UltraHonk verifier (M3), gas benchmarks, payout-push, nullifier archival, fuzz the decoder |
 | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits/issues) | pin `bb` in CI, targeted-revocation IMT (deferred), circuit review, in-circuit ECIES for the auditor blob (M7) |
 | [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk/issues) | local prover service, tx-relayer-submit `enter`, issuer CLI (KYC → sign, CSPRNG enforcement) |
 | tx-relayer (new, M6) | build the fee-sponsoring `enter` relayer — see `docs/TX_RELAYER.md` |

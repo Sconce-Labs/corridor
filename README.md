@@ -49,50 +49,49 @@ See [`DRIPS.md`](./DRIPS.md).
 
 ## Status
 
-**Pre-MVP research build.** What's real: the attestation contracts are deployed
-to Stellar testnet and the `register → enter → is_cleared` flow executes
-on-chain with the policy binding (issuer allowlist, tier, revocation floor,
-time-skew, auditor key, nullifier uniqueness) enforced; the Noir circuit does a
-real Grumpkin Schnorr verification (73 ACIR opcodes) and its BN254 hashing is
-conformance-checked against the SDK and Soroban; the SDK signer matches the
-circuit's verifier against a pinned vector.
+**Pre-MVP research build.** What's real: the **Option B** attestation contracts
+are deployed to Stellar testnet (2026-09-10) and the `register → enter →
+is_cleared` flow executes on-chain with the policy binding (issuer allowlist,
+tier, `min_cred_epoch` floor, time-skew, auditor key, nullifier uniqueness)
+enforced; the Noir circuit does a real Grumpkin Schnorr verification (73 ACIR
+opcodes) with a signed fixture `nargo execute` solves; the SDK signer matches
+the circuit's verifier against a pinned vector; the [site](https://corridor-pink.vercel.app)
+reads the live deployment and has an operator clearance checker.
 
-What's *not* yet real: on-chain **ZK verification** (mocked — M3), the
-fee-sponsoring **tx-relayer** (M6), and a **frontend** for the current design
-(M6). The **Option B redesign** (2026-09-10) resolved the two critical design
-holes the audit found — revocation and the cross-chain field mismatch — by
-dropping the accumulator entirely for issuer-signed statements. The on-testnet
-deployment predates Option B and needs a redeploy (M2).
+What's *not* yet real: on-chain **ZK verification** (mocked — M3) and the
+fee-sponsoring **tx-relayer** (M6). The **Option B redesign** (2026-09-10)
+resolved the two critical design holes the audit found — revocation and the
+cross-chain field mismatch — by dropping the accumulator entirely for
+issuer-signed statements.
 
 See [`AUDIT.md`](./AUDIT.md), [`ROADMAP.md`](./ROADMAP.md),
 [`HANDOFF.md`](./HANDOFF.md), [`COMPONENTS.md`](./COMPONENTS.md).
 
 | Component | Repo | State |
 |-----------|------|-------|
-| Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts) | ✅ 25 host tests green (Option B); ⏳ testnet redeploy pending (M2) |
+| Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts) | ✅ 25 host tests; **deployed + smoke-verified on testnet (Option B ABI)** |
 | Poseidon2 hash conformance (circuit ⇄ SDK ⇄ Soroban) | contracts / circuits / sdk | ✅ pinned vector matches across all three |
 | Noir `corridor_eligibility` circuit | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits) | ✅ 18 tests, real Grumpkin Schnorr verify + signed fixture, `nargo execute` solves it (Noir 1.0.0-beta.26) |
 | `@corridor/verify` SDK | [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) | ✅ `getPolicy` / `isCleared` / `passes` / `buildWitness` / `issueCredential` / Grumpkin signer real (23 tests, live testnet reads); prover + relayer clients pending |
 | Real UltraHonk Soroban verifier | corridor-contracts | ❌ M3 — mock in place |
 | Midnight `corridor.compact` issuer registry | this repo (`contracts/`) | ✅ compiles in CI (6 circuits, Option B); ⏳ simulator tests + Preprod deploy (M4) |
 | Fee-sponsoring tx-relayer | — (`docs/TX_RELAYER.md`) | ❌ M6 — specced, not built |
-| Frontend | this repo — [corridor-pink.vercel.app](https://corridor-pink.vercel.app) | ❌ stale single-chain scaffold — M6 |
+| Frontend | this repo (`web/`) — [corridor-pink.vercel.app](https://corridor-pink.vercel.app) | ✅ site + live testnet reads + operator clearance checker |
 
 ### Contract addresses
 
+Option B ABI, deployed 2026-09-10 (record:
+[`corridor-contracts/deployments/testnet.json`](https://github.com/Sconce-Labs/corridor-contracts/blob/main/deployments/testnet.json)):
+
 | Network | Contract | Address |
 |---------|----------|---------|
-| Stellar Testnet | `corridor_registry` | `CB6LZV6TJN6YZ2O7FVLNRCJMRVBXCDG6JFFREHGY2BD5K4EYWJ6WKT2K` |
-| Stellar Testnet | `corridor_attestation` | `CCAGXABIZWHNLA754LSQCFPA35VLJZEH24MD5OGJNIEMFQHZ7LWQD5AR` |
-| Stellar Testnet | `verifier_mock` (placeholder — M3) | `CDT4ZVOIAI5JN4TC3WZYIBJ3NOJENZWKD2ZNOTSVVZBZBZ5GMOSNJEQP` |
-| Midnight Preview | `corridor.compact` | not yet deployed for Option B (M4) |
+| Stellar Testnet | `corridor_registry` | `CAV6DMVCBOU5DGQVFSPU2UIF62LNFW7PWAGC7HCPHVIUO6SWRPSX3B65` |
+| Stellar Testnet | `corridor_attestation` | `CD76SRVQS6QSDFL2DYWGPK2JGWQPZO4NBFOGRDR5UWLGCABLBONNUXK5` |
+| Stellar Testnet | `verifier_mock` (placeholder — M3) | `CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y` |
+| Midnight Preview | `corridor.compact` | not yet deployed (M4) |
 
-> The Stellar addresses above ran the pre-Option-B ABI. A redeploy against the
-> issuer-signed-statement contracts is **M2**; the deployment record
-> ([`corridor-contracts/deployments/testnet.json`](https://github.com/Sconce-Labs/corridor-contracts/blob/main/deployments/testnet.json))
-> will be refreshed then. The earlier run verified `register → post_root →
-> enter → is_cleared == true` with replay rejected; `post_root` no longer
-> exists under Option B.
+Smoke-verified on testnet: `register → enter` (PassGranted) `→ is_cleared ==
+true`; replay rejected with `NullifierUsed` (Error #12).
 
 ## Repository layout
 
@@ -100,6 +99,7 @@ This hub repo:
 
 ```
 contracts/   Midnight issuer registry (Compact)
+web/         the public site + operator clearance checker (Vite/React → Vercel)
 midnight/    Midnight wallet + deploy tooling (predates Option B — being trimmed)
 docs/        usage + design notes
 *.md         architecture, proposal, roadmap, handoff, drips

@@ -30,7 +30,7 @@ number of providers, revealing nothing. Hybrid by design:
 |------|----------|-------|
 | **Sconce-Labs/corridor** (this) | docs, `contracts/corridor.compact` (Midnight), `src/` (frontend) | active |
 | **Sconce-Labs/corridor-contracts** | Soroban workspace; owns `ABI.md` | ✅ 14 tests, deployed to testnet |
-| **Sconce-Labs/corridor-circuits** | `corridor_eligibility` Noir circuit | written, unproven |
+| **Sconce-Labs/corridor-circuits** | `corridor_eligibility` Noir circuit | ✅ compiles + tests (beta.26) |
 | **Sconce-Labs/corridor-sdk** | `@corridor/verify` TS SDK | skeleton |
 | Sconce-Labs/corridor-relayer | root-sync service | not created (M5) |
 
@@ -67,10 +67,10 @@ trusted message. Full rationale: `PROPOSAL.md` §"Why two networks".
 |-----------|-------------|-------|------|
 | Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 14 host tests, **deployed + verified on testnet** | real verifier (M3) |
 | Public-input ABI (`PI_*`) | corridor-contracts `crates/corridor_types` + `ABI.md` | ✅ source of truth | keep circuit + SDK in sync |
-| Noir circuit | corridor-circuits | ✅ written, ⏳ unproven | fixtures + `nargo`/`bb` (M2) |
+| Noir circuit | corridor-circuits | ✅ `nargo check` + `nargo test` green (beta.26) | real fixtures + witness builder (M2) |
 | Poseidon2 cross-chain domain match | circuit ↔ host fn ↔ Compact | ❌ | conformance test (M2) — hard gate |
 | Real UltraHonk verifier | corridor-contracts | ❌ | wire `indextree/ultrahonk_soroban_contract` (M3) |
-| Midnight credential registry | this repo `contracts/corridor.compact` | ✅ written, ⏳ uncompiled | `compact compile` + Preprod (M4) |
+| Midnight credential registry | this repo `contracts/corridor.compact` | ✅ compiles in CI | simulator tests + Preprod (M4) |
 | Root-sync relayer | corridor-relayer | ❌ | M5 |
 | `@corridor/verify` SDK | corridor-sdk | ⏳ skeleton | M6 |
 | Frontend | this repo `src/` | ⚠️ old single-chain UI | rewrite M6 |
@@ -97,11 +97,12 @@ Deployer key `corridor`: `GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR
 1. **`verifier_mock` returns `true` by default.** Every happy-path test (and the
    testnet demo) trusts the mock. Real soundness starts at M3.
 
-2. **Poseidon2 must match across chains.** The Noir `poseidon` dep in
-   `corridor-circuits/corridor_eligibility/Nargo.toml` has a placeholder `tag`.
-   If its params differ from Soroban's `poseidon2_permutation` (and the Compact
-   tree hashing), the Merkle roots computed on Midnight, in the circuit, and
-   checked on Stellar will silently disagree. Correctness gate before M3.
+2. **Poseidon2 must match across chains.** The circuit uses
+   `noir-lang/poseidon` v0.3.0. Nobody has yet checked that its permutation is
+   byte-identical to Soroban's `poseidon2_permutation` host function and the
+   Compact tree hashing. If they differ, the Merkle roots on Midnight, in the
+   circuit, and checked on Stellar silently disagree. Conformance test = hard
+   gate before M3.
 
 3. **The relayer is trusted in the MVP.** `post_root` is
    permissionless-but-logged. A dishonest root admits bad credentials or
@@ -119,10 +120,11 @@ Deployer key `corridor`: `GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR
 6. **Auditor mode is a commitment, not encryption yet.** `auditor_blob` is a
    hiding Poseidon2 commitment. Real decryption needs in-circuit ECIES (M7).
 
-7. **Compact contract is unverified.** `contracts/corridor.compact` was written
-   without the `compact` compiler on the box (`which compact` = the Windows NTFS
-   tool). The `Set` / `MerkleTree` API must be checked against
-   CompactStandardLibrary — CI job is `continue-on-error` until M4.
+7. **Compact contract compiles but is untested.** `contracts/corridor.compact`
+   compiles clean in the hub CI ("Compiling 4 circuits"), so the `Set` /
+   `MerkleTree` / `persistentHash` API is correct. Still owed (M4): simulator
+   tests, a review of the issuer-auth model, Preprod deploy. On Windows use WSL
+   — `which compact` there is the NTFS tool.
 
 8. **`.midnight-state.json`** still holds plaintext Preview/Preprod seeds; it is
    gitignored (verified). Never commit or reuse for value.

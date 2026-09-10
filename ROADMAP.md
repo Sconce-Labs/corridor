@@ -12,13 +12,16 @@ the relayer, and a pilot. Milestones are sized to map onto
 
 ## Where things stand
 
+Split across five repos ([`COMPONENTS.md`](./COMPONENTS.md)), all with CI:
+
 | Layer | Built | Not built |
 |-------|-------|-----------|
-| Stellar / Soroban | registry, attestation, mock verifier, shared types, host tests | testnet deploy, real verifier, payout-push mode |
-| Noir circuit | inclusion, non-membership, tier, expiry, nullifier, tag, auditor-binding | proven end-to-end, real fixtures, Poseidon2 domain match |
-| Midnight / Compact | credential + revocation trees, issuer set, issue/revoke circuits | `compact compile` pass, Preprod deploy |
-| Bridge | design + `post_root` entrypoint | the relayer service, multi-relayer trust reduction |
-| App | (old single-chain UI, retired) | `@corridor/verify` SDK, holder + operator UIs |
+| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (events, `transfer_admin`), attestation (events, nullifier ledger), mock verifier, `ultrahonk_verifier` skeleton, typed modules, ~20 host tests, **deployed + verified on testnet**, Poseidon2 conformance (4 vectors) | the real UltraHonk verification, payout-push mode, gas benchmarks |
+| Noir circuit ([corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)) | `merkle`/`eligibility`/`tags`/`conformance` modules, `nargo check`+`test` (19 tests, all 8 failure modes), `nargo execute` on a committed fixture, gate-count in CI | `bb prove/verify` pinned in CI, real Merkle fixtures from the indexer, indexed-tree revocation |
+| Midnight / Compact (this repo `contracts/`) | credential + revocation trees, issuer set, issue/revoke circuits, **compiles in CI** | simulator tests, issuer-auth review, Preprod deploy |
+| Bridge ([corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)) | poll loop, `--once`, health/metrics server, config validation, **working Stellar read/write**, Midnight GraphQL scaffold | `readRoots` decoding (needs Compact on Preprod), multi-relayer quorum |
+| SDK ([corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)) | `getPolicy`/`isCleared`/`passes`/`passRecord` (live), `buildWitness`, `verifyWitnessLocally`, `makeFixture`/`toProverToml`, `merkle`/`poseidon` modules, examples | `requestProof`/`enter` (need M3 + relayer), issuer CLI |
+| App (this repo `src/`) | (old single-chain UI, retired) | holder + operator UIs |
 
 ---
 

@@ -128,17 +128,26 @@ testnet deployment is real.
 
 ---
 
-## Remediation priority
+## Remediation status (2026-09-10)
 
-| # | Action | Effort | Status |
-|---|--------|--------|--------|
-| 1 | Allowlist `post_root` (C2) | S | ✅ done |
-| 2 | Architecture decision: accumulator vs signed statements (C1/C4) | — | 📋 doc written, needs sign-off |
-| 3 | Indexed Merkle tree revocation in circuit + SDK (C1) | L | 🔨 in progress |
-| 4 | Real UltraHonk verifier (C3) | L | M3 |
-| 5 | Nullifier permanence (H3) | S | ✅ done |
-| 6 | `auditor_pubkey` policy binding (H4) | M | 🔨 in progress |
-| 7 | Rename root-sync relayer; spec the tx-relayer (H1) | M | open |
-| 8 | Cross-repo integration test (M3) | M | open |
-| 9 | Delete retired scaffold (M4) | S | 🔨 in progress |
-| 10 | Soften top-line claims (C3/M10) | S | ✅ done |
+| # | Action | Status |
+|---|--------|--------|
+| C1 | Indexed Merkle tree revocation — circuit + SDK | ✅ done (`imt.nr`, `IndexedMerkleTree`; `nargo execute` solves the SDK fixture) |
+| C1 | Compact-side revocation | ⛔ blocked on C4 decision |
+| C2 | Allowlist `post_root` + two-step admin | ✅ done |
+| C3 | Real UltraHonk verifier | ⏳ M3 (large) — docs no longer claim it's live |
+| C4 | Accumulator architecture (BLS12-381 vs BN254) | 📋 `docs/CREDENTIAL_ACCUMULATOR.md` — **needs sign-off** |
+| H1 | Root-sync vs tx-relayer | ✅ clarified; `docs/TX_RELAYER.md` specs the unbuilt tx-relayer |
+| H2 | Relayer core (`readRoots`) | ⏳ M5 (or removed under Option B) |
+| H3 | Nullifier permanence | ✅ done |
+| H4 | `auditor_pubkey` bound to policy | ✅ done (PI_LEN 9→10) |
+| H5 | Holder-secret entropy | ✅ `assertStrongSecret` + `randomSecret` exported + circuit doc note; true enforcement is issuer-side |
+| M1 | Pin `rs-soroban-poseidon` git dep | ✅ done |
+| M3 | Cross-repo integration test | ✅ `corridor-sdk/src/integration.test.ts` + `scripts/integration.sh` |
+| M4 | Delete retired counter scaffold | ✅ done |
+| M5 | `PolicyUpdated` event detail | ✅ done |
+| M6 | Two-step `transfer_admin` | ✅ done |
+| M7 | Just-expired credential window | 🔵 documented; acceptable |
+| M8 | `Passes` counter TTL | ✅ done |
+| M9 | `Prover.toml` doc drift | ✅ non-issue (already correct) |
+| M10 | Top-line claims | ✅ done |

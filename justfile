@@ -1,35 +1,26 @@
-# Corridor — one entrypoint for all three layers.
-# Install: https://github.com/casey/just
+# Corridor hub — assumes the component repos are checked out as siblings:
+#   ../corridor-contracts  ../corridor-circuits  ../corridor-sdk
+# Install just: https://github.com/casey/just
 
 default:
     @just --list
 
-# ── Stellar / Soroban ───────────────────────────────────────────────────────
-stellar-test:
-    cd stellar && cargo test --workspace
-
-stellar-build:
-    cd stellar && cargo build --workspace --release --target wasm32v1-none
-
-stellar-fmt:
-    cd stellar && cargo fmt --all
-
-# ── Noir circuit ────────────────────────────────────────────────────────────
-circuit-check:
-    cd circuits/corridor_eligibility && nargo check
-
-circuit-test:
-    cd circuits/corridor_eligibility && nargo test
-
-# ── Midnight / Compact ──────────────────────────────────────────────────────
+# ── Midnight / Compact (this repo) ──────────────────────────────────────────
 midnight-compile:
     compact compile contracts/corridor.compact contracts/managed/corridor
 
-# ── SDK ─────────────────────────────────────────────────────────────────────
+# ── Component repos (siblings) ──────────────────────────────────────────────
+contracts-test:
+    cd ../corridor-contracts && cargo test --workspace
+
+contracts-build:
+    cd ../corridor-contracts && cargo build --workspace --release --target wasm32v1-none
+
+circuit-test:
+    cd ../corridor-circuits/corridor_eligibility && nargo test
+
 sdk-test:
-    cd packages/verify && npm test
+    cd ../corridor-sdk && npm test
 
-# ── Everything ──────────────────────────────────────────────────────────────
-test: stellar-test circuit-test sdk-test
-
-fmt: stellar-fmt
+# ── Everything ─────────────────────────────────────────────────────────────
+test: contracts-test circuit-test sdk-test

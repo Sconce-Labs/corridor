@@ -165,7 +165,7 @@ global unmasking, no issuer involvement.
 
 ---
 
-## 4. The Noir circuit (`circuits/corridor_eligibility`)
+## 4. The Noir circuit (repo: [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits))
 
 **Private inputs:** `holder_secret, tier, expiry, issuer_id, salt,
 merkle_path[DEPTH], merkle_index, non_rev_path[DEPTH], non_rev_index,
@@ -197,11 +197,12 @@ verifier deploy time; `vk_hash` on the policy pins which VK a corridor trusts.
 
 ---
 
-## 5. Soroban contracts (`stellar/`)
+## 5. Soroban contracts (repo: [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts))
 
 ```
-stellar/
+corridor-contracts/
 ├── Cargo.toml                         workspace, soroban-sdk 25.3
+├── ABI.md                             source of truth for the PI_* public-input layout
 ├── crates/corridor_types/             shared types: CorridorPolicy, PassRecord, PublicInputs, errors
 ├── contracts/corridor_registry/       corridor policy CRUD + root sync + admin
 ├── contracts/corridor_attestation/    enter(), is_cleared(), nullifier ledger, events, payment hook
@@ -260,26 +261,20 @@ nullifiers they hold a warrant for, by decrypting `auditor_blob`.
 
 ---
 
-## 8. Repository layout (target)
+## 8. Repository layout
+
+Corridor is split across repos ([`COMPONENTS.md`](./COMPONENTS.md)):
 
 ```
-corridor/
-├── ARCHITECTURE.md          ← this file
-├── README.md                ← product + quickstart
-├── PROPOSAL.md              ← the pitch (SCF / Drips)
-├── ROADMAP.md               ← milestones
-├── HANDOFF.md               ← cold-start guide
-├── DRIPS.md                 ← Drips Wave contributor guide
-├── contracts/               ← Midnight (Compact)
-│   └── corridor.compact
-├── circuits/                ← Noir
-│   └── corridor_eligibility/
-├── stellar/                 ← Soroban (Rust workspace)
-│   ├── crates/corridor_types/
-│   └── contracts/{corridor_registry,corridor_attestation,verifier_mock}/
-├── relayer/                 ← root-sync service (later milestone)
-├── packages/                ← @corridor/verify TS SDK (later milestone)
-└── src/                     ← React frontend
+Sconce-Labs/corridor            ← hub: this file, README, PROPOSAL, ROADMAP,
+│                                  HANDOFF, DRIPS, docs/
+├── contracts/corridor.compact  ← Midnight credential registry
+└── src/                        ← React frontend (holder + operator UIs)
+
+Sconce-Labs/corridor-contracts  ← Soroban workspace (Rust); owns ABI.md
+Sconce-Labs/corridor-circuits   ← Noir corridor_eligibility circuit
+Sconce-Labs/corridor-sdk        ← @corridor/verify TypeScript SDK
+Sconce-Labs/corridor-relayer    ← root-sync service (not yet created — M5)
 ```
 
 ---

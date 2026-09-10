@@ -6,44 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# The Soroban contracts and the Noir circuit have their own CI in
+# Sconce-Labs/corridor-contracts and Sconce-Labs/corridor-circuits.
+# This repo's CI covers the Midnight contract and doc link hygiene.
+
 jobs:
-  stellar:
-    name: Stellar / Soroban
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: stellar
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32v1-none
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: stellar
-      - name: Unit tests (host)
-        run: cargo test --workspace --locked
-      - name: Contract wasm build
-        run: cargo build --workspace --locked --release --target wasm32v1-none
-
-  circuits:
-    name: Noir circuit
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: circuits/corridor_eligibility
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Noir
-        run: |
-          curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash
-          echo "$HOME/.nargo/bin" >> "$GITHUB_PATH"
-      - run: noirup
-      - name: Type-check
-        run: nargo check
-      - name: Circuit tests
-        run: nargo test
-
   midnight:
     name: Midnight / Compact
     runs-on: ubuntu-latest
@@ -60,3 +27,20 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile credential registry
         run: compact compile contracts/corridor.compact contracts/managed/corridor
+
+  links:
+    name: Doc links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check relative markdown links resolve
+        run: |
+          miss=$(
+            for f in $(git ls-files '*.md'); do
+              d=$(dirname "$f")
+              grep -oE '\]\(\.{1,2}/[^)#]+' "$f" | sed 's/^](//' | while read -r rel; do
+                [ -e "$d/$rel" ] || echo "$f -> $rel"
+              done
+            done
+          )
+          if [ -n "$miss" ]; then echo "$miss"; exit 1; fi

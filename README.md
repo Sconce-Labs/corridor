@@ -17,7 +17,9 @@ Corridor spans **two networks by design**:
 A **Noir → UltraHonk** proof, generated on the holder's device, is the bridge.
 
 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full design and
-[`PROPOSAL.md`](./PROPOSAL.md) for the pitch.
+[`PROPOSAL.md`](./PROPOSAL.md) for the pitch. Corridor is split across repos —
+see [`COMPONENTS.md`](./COMPONENTS.md). This repo is the hub (docs + the
+Midnight contract + the frontend).
 
 ## Origin & participation
 
@@ -34,14 +36,15 @@ See [`DRIPS.md`](./DRIPS.md).
 Pre-MVP, mid-port from a single-chain prototype. See [`ROADMAP.md`](./ROADMAP.md)
 and [`HANDOFF.md`](./HANDOFF.md).
 
-| Component | State |
-|-----------|-------|
-| Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | ✅ implemented, 14 host tests, **deployed + verified end-to-end on testnet** |
-| Noir `corridor_eligibility` circuit | ✅ written, ⏳ not yet proven end-to-end (`circuits/`) |
-| Real UltraHonk Soroban verifier | ❌ M3 — mock in place |
-| Midnight `corridor.compact` credential registry | ✅ written, ⏳ needs `compact compile` verification (`contracts/`) |
-| Root-sync relayer | ❌ M5 |
-| `@corridor/verify` SDK + frontend rewrite | ❌ M6 |
+| Component | Repo | State |
+|-----------|------|-------|
+| Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts) | ✅ 14 host tests, **deployed + verified end-to-end on testnet** |
+| Noir `corridor_eligibility` circuit | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits) | ✅ written, ⏳ not yet proven end-to-end |
+| Real UltraHonk Soroban verifier | corridor-contracts | ❌ M3 — mock in place |
+| Midnight `corridor.compact` credential registry | this repo (`contracts/`) | ✅ written, ⏳ needs `compact compile` |
+| Root-sync relayer | corridor-relayer _(tbd)_ | ❌ M5 |
+| `@corridor/verify` SDK | [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) | ⏳ skeleton — M6 |
+| Frontend rewrite | this repo (`src/`) | ❌ M6 |
 
 ### Contract addresses
 
@@ -52,18 +55,25 @@ and [`HANDOFF.md`](./HANDOFF.md).
 | Stellar Testnet | `verifier_mock` (placeholder — M3) | `CDT4ZVOIAI5JN4TC3WZYIBJ3NOJENZWKD2ZNOTSVVZBZBZ5GMOSNJEQP` |
 | Midnight Preview | `corridor.compact` (legacy `counter`) | `2883f006dcf296722ac6f0da3bf46578b4dfbbc2bebf915a0fb4e302d8a89a12` |
 
-Full deployment record + smoke-test tx hashes: [`stellar/deployments/testnet.json`](./stellar/deployments/testnet.json).
+Full deployment record + smoke-test tx hashes:
+[`corridor-contracts/deployments/testnet.json`](https://github.com/Sconce-Labs/corridor-contracts/blob/main/deployments/testnet.json).
 End-to-end verified on testnet: `register` → `post_root` → `enter` → `is_cleared == true`, replay rejected.
 
 ## Repository layout
 
+This hub repo:
+
 ```
 contracts/   Midnight credential registry (Compact)
-circuits/    Noir eligibility circuit
-stellar/     Soroban workspace (Rust): registry, attestation, mock verifier
 src/         React frontend (holder + operator UIs — mid-rewrite)
 docs/        usage + design notes
+*.md         architecture, proposal, roadmap, handoff, drips
 ```
+
+Other repos: [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)
+(Soroban) · [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)
+(Noir) · [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) (TS). See
+[`COMPONENTS.md`](./COMPONENTS.md).
 
 ## Privacy model
 
@@ -84,21 +94,18 @@ they hold a warrant for.
 ## Quickstart
 
 ```bash
-git clone https://github.com/Sconce-Labs/corridor.git
-cd corridor
+# This repo — Midnight contract (needs the Compact compiler)
+git clone https://github.com/Sconce-Labs/corridor.git && cd corridor
+compact compile contracts/corridor.compact contracts/managed/corridor
 
 # Stellar contracts
-cd stellar && cargo test --workspace && cd ..
+git clone https://github.com/Sconce-Labs/corridor-contracts.git
+cd corridor-contracts && cargo test --workspace && cd ..
 
 # Noir circuit  (needs noirup + bbup)
-cd circuits/corridor_eligibility && nargo test && cd ../..
-
-# Midnight contract  (needs the Compact compiler)
-compact compile contracts/corridor.compact contracts/managed/corridor
+git clone https://github.com/Sconce-Labs/corridor-circuits.git
+cd corridor-circuits/corridor_eligibility && nargo test
 ```
-
-Per-layer detail: [`stellar/README.md`](./stellar/README.md),
-[`circuits/README.md`](./circuits/README.md).
 
 ## Contributing / Drips Wave
 

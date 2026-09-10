@@ -1,14 +1,29 @@
 # Drips Wave — issue backlog
 
-Paste-ready issues for the GitHub tracker. Each is one PR. Complexity maps to
-Drips points (low ≈ 100, medium ≈ 150, high ≈ 200). Keep this file in sync as
-issues are opened/closed.
+Paste-ready issues. Each is one PR. Complexity maps to Drips points
+(low ≈ 100, medium ≈ 150, high ≈ 200). Keep this file in sync as issues are
+opened/closed.
+
+**Open each issue in the repo it belongs to:**
+
+| Prefix | Repo |
+|--------|------|
+| `stellar/…`, Soroban, `cargo` | [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts) |
+| `circuits/…`, Noir, `nargo` | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits) |
+| `packages/…`, `@corridor/*`, TS SDK | [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) |
+| `contracts/corridor.compact`, `src/…`, docs | [corridor](https://github.com/Sconce-Labs/corridor) (hub) |
+| `relayer/…` | corridor-relayer (create first) |
+
+Paths in the issue bodies below use the pre-split layout — map them with the
+table above (`stellar/X` → `corridor-contracts/X`, etc.).
 
 ---
 
-## M1 — Stellar core on testnet
+## M1 — Stellar core (mostly ✅ done 2026-09-10 — deploy + demo shipped)
 
-### #1 Deploy the Soroban stack to testnet + document addresses · low · M1
+### #1 ✅ Deploy the Soroban stack to testnet + document addresses · low · M1
+_Done: see `corridor-contracts/deployments/testnet.json`. Remaining: turn the
+one-off into `scripts/deploy_testnet.sh` hardening + a `justfile` target._
 Deploy `verifier_mock`, `corridor_registry`, `corridor_attestation` to Stellar
 testnet with a script (`stellar/scripts/deploy_testnet.sh`). Write the returned
 addresses into `README.md` and `.env.example`. Add a `justfile`/`Makefile`
@@ -16,10 +31,10 @@ target.
 **Done:** running the script from a clean checkout prints three addresses and a
 one-line demo (`register` → `post_root` → `enter` → `is_cleared == true`).
 
-### #2 Scripted end-to-end demo against the mock verifier · medium · M1
-`stellar/scripts/demo.sh`: register a corridor, post a root, build a
-public-input vector, call `enter`, assert a pass, assert `NullifierUsed` on
-replay. Runs in CI against a local `stellar` sandbox.
+### #2 ~✅ Scripted end-to-end demo against the mock verifier · medium · M1
+`scripts/demo.sh` exists and the flow was verified live on testnet (register →
+post_root → enter → is_cleared, replay → NullifierUsed). Remaining: make it run
+in CI against a local `stellar` sandbox / snapshot.
 
 ### #3 Event schema + docs · low · M1
 Define and document every event (`REG`, `ROOT`, `PASS`) — topic layout and data

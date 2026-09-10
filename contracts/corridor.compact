@@ -2,43 +2,48 @@ pragma language_version >= 0.24;
 import CompactStandardLibrary;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Corridor — Midnight credential registry
+// Corridor — issuer registry & KYC-attestation log (Option B)
 //
-// This is the credential-CUSTODY layer of the hybrid design (see ARCHITECTURE.md).
-// A regulated issuer, after running KYC once off-chain, records a credential
-// COMMITMENT here. The holder keeps the opening (secret + attributes) in their
-// own Midnight private state and later proves eligibility with a Noir circuit
-// that the Stellar side verifies.
+// Option B removed the on-chain credential accumulator (see
+// docs/CREDENTIAL_ACCUMULATOR.md). A regulated issuer runs KYC once off-chain,
+// then SIGNS a short-lived statement { holder_binding, tier, expiry,
+// cred_epoch } with its Grumpkin key; the holder proves knowledge of that
+// signature to any payment corridor with the Noir circuit. There is no
+// per-credential state anywhere.
 //
-// WHAT IS PUBLIC (on the Midnight ledger, visible to anyone):
-//   • issuers        — Set<Bytes<32>>            — registered issuer ids. Issuer
-//                      identity is public BY DESIGN (accountability). Holder
-//                      identity never is.
-//   • credentials    — MerkleTree<32, Bytes<32>> — commitments to issued
-//                      credentials. A commitment is
-//                      Poseidon2(holderSecret, tier, expiry, issuerId, salt);
-//                      it reveals nothing about the holder or the attributes.
-//   • revoked        — MerkleTree<32, Bytes<32>> — sparse tree of revoked
-//                      credential slots (slot = Poseidon2(commitment)).
-//   • epoch          — Counter                   — bumped on every tree write so
-//                      the Stellar relayer knows when to re-sync roots.
-//   • admin          — Bytes<32>                 — governance key hash.
+// This contract is the PUBLIC, auditable surface of the issuer side:
+//   • who the licensed issuers are, and
+//   • each issuer's current credential epoch — the bulk-revocation dial. An
+//     issuer bumps its epoch to invalidate every statement it signed under an
+//     older one; corridor operators read this value and raise their policy's
+//     `min_cred_epoch` on Stellar to match.
+// It holds NO holder data and never sees a credential.
 //
-// WHAT IS PRIVATE (witness, never on-chain):
-//   • issuerSk       — the issuer's secret; only its hash (issuerId) is public.
-//   • everything about the holder and their attributes — those never reach this
-//     contract at all; only the commitment does.
+// PUBLIC (Midnight ledger, visible to anyone):
+//   • admin        — Bytes<32>                — governance key hash.
+//   • issuers      — Set<Bytes<32>>           — registered issuer ids. An
+//                    issuer id is Poseidon2(pk.x, pk.y) of the issuer's
+//                    Grumpkin signing key — the SAME id a Stellar corridor
+//                    policy allowlists and the circuit binds to.
+//   • issuerAuth   — Map<Bytes<32>, Bytes<32>> — issuer id → hash of the
+//                    issuer's Midnight control secret, set at registration so
+//                    the issuer (not just the admin) can bump its own epoch.
+//   • issuerEpoch  — Map<Bytes<32>, Uint<64>> — issuer id → current credential
+//                    epoch. Monotonic; starts at 1.
+//   • attested     — Counter                  — total statements issuers have
+//                    reported signing. Transparency only; unlinkable to holders.
 //
-// Compiles clean with the Compact compiler in CI ("Compiling 4 circuits").
-// Still owed before deploy (M4): simulator tests, Preprod deployment, and a
-// review of the issuer-auth model (see registerIssuer / issueCredential).
+// PRIVATE (witness, never on-chain): adminSk, issuerCtl — only hashes disclosed.
+//
+// Compiles clean with the Compact compiler in CI ("Compiling 6 circuits").
+// Still owed before a Preprod deploy (M4): simulator tests.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export ledger admin: Bytes<32>;
 export ledger issuers: Set<Bytes<32>>;
-export ledger credentials: MerkleTree<32, Bytes<32>>;
-export ledger revoked: MerkleTree<32, Bytes<32>>;
-export ledger epoch: Counter;
+export ledger issuerAuth: Map<Bytes<32>, Bytes<32>>;
+export ledger issuerEpoch: Map<Bytes<32>, Uint<64>>;
+export ledger attested: Counter;
 
 // One-time bootstrap: set the governance key. `adminSk` is the witness; only
 // its hash is stored.
@@ -47,31 +52,52 @@ export circuit initAdmin(adminSk: Bytes<32>): [] {
     admin = disclose(persistentHash<Bytes<32>>(adminSk));
 }
 
-// Admin registers an issuer. The issuer id is public.
-export circuit registerIssuer(adminSk: Bytes<32>, issuerId: Bytes<32>): [] {
+// Admin registers a licensed issuer. `issuerId` is the Poseidon2 hash of the
+// issuer's Grumpkin signing-key coordinates (public by design — issuer
+// identity is accountable, holder identity never is). `ctlHash` is the hash of
+// a Midnight secret the issuer will use to bump its own epoch.
+export circuit registerIssuer(adminSk: Bytes<32>, issuerId: Bytes<32>, ctlHash: Bytes<32>): [] {
     assert(persistentHash<Bytes<32>>(adminSk) == admin, "not admin");
+    assert(!issuers.member(disclose(issuerId)), "issuer already registered");
     issuers.insert(disclose(issuerId));
-    epoch.increment(1);
+    issuerAuth.insert(disclose(issuerId), disclose(ctlHash));
+    issuerEpoch.insert(disclose(issuerId), 1);
 }
 
-// A registered issuer records a credential commitment. The issuer proves
-// control of `issuerId` by knowing `issuerSk`; the commitment is disclosed
-// (it is opaque), the attributes behind it never enter the circuit.
-export circuit issueCredential(issuerSk: Bytes<32>, commitment: Bytes<32>): [] {
-    const issuerId = persistentHash<Bytes<32>>(issuerSk);
+// Admin removes an issuer (licence revoked / key compromised). Corridors should
+// also drop it from their Stellar allowlist.
+export circuit deregisterIssuer(adminSk: Bytes<32>, issuerId: Bytes<32>): [] {
+    assert(persistentHash<Bytes<32>>(adminSk) == admin, "not admin");
     assert(issuers.member(disclose(issuerId)), "unknown issuer");
-    credentials.insert(disclose(commitment));
-    epoch.increment(1);
+    issuers.remove(disclose(issuerId));
+    issuerAuth.remove(disclose(issuerId));
+    issuerEpoch.remove(disclose(issuerId));
 }
 
-// Issuer (or admin) revokes a credential by inserting its slot into the
-// revocation tree. `slot` = Poseidon2(commitment), matching the Noir circuit.
-export circuit revokeCredential(issuerSk: Bytes<32>, slot: Bytes<32>): [] {
-    const issuerId = persistentHash<Bytes<32>>(issuerSk);
-    assert(
-        issuers.member(disclose(issuerId)) || persistentHash<Bytes<32>>(issuerSk) == admin,
-        "not authorized to revoke"
-    );
-    revoked.insert(disclose(slot));
-    epoch.increment(1);
+// The issuer (proving control with `issuerCtl`) publishes a new, higher
+// credential epoch — a bulk revocation of everything it signed before.
+export circuit bumpEpoch(issuerCtl: Bytes<32>, issuerId: Bytes<32>, newEpoch: Uint<64>): [] {
+    assert(issuers.member(disclose(issuerId)), "unknown issuer");
+    assert(issuerAuth.lookup(disclose(issuerId)) == persistentHash<Bytes<32>>(issuerCtl),
+        "not this issuer");
+    assert(disclose(newEpoch) > issuerEpoch.lookup(disclose(issuerId)), "epoch must increase");
+    issuerEpoch.insert(disclose(issuerId), disclose(newEpoch));
+}
+
+// Admin escape hatch: bump an issuer's epoch even without its control secret
+// (issuer unreachable, key lost). Same monotonicity rule.
+export circuit adminBumpEpoch(adminSk: Bytes<32>, issuerId: Bytes<32>, newEpoch: Uint<64>): [] {
+    assert(persistentHash<Bytes<32>>(adminSk) == admin, "not admin");
+    assert(issuers.member(disclose(issuerId)), "unknown issuer");
+    assert(disclose(newEpoch) > issuerEpoch.lookup(disclose(issuerId)), "epoch must increase");
+    issuerEpoch.insert(disclose(issuerId), disclose(newEpoch));
+}
+
+// A registered issuer reports that it signed `count` more statements. Purely a
+// public transparency signal — no holder, attribute or commitment data enters.
+export circuit reportAttestations(issuerCtl: Bytes<32>, issuerId: Bytes<32>, count: Uint<16>): [] {
+    assert(issuers.member(disclose(issuerId)), "unknown issuer");
+    assert(issuerAuth.lookup(disclose(issuerId)) == persistentHash<Bytes<32>>(issuerCtl),
+        "not this issuer");
+    attested.increment(disclose(count));
 }

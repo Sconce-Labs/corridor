@@ -11,8 +11,9 @@ Corridor spans **two networks by design**:
 - **Midnight** holds the credential. A regulated issuer records a commitment;
   the holder keeps the attributes in their own confidential state.
 - **Stellar / Soroban** runs the corridors. Operators register a policy, the
-  holder's zero-knowledge proof is verified on-chain (Protocol 25 primitives),
-  a pass is attested, and payouts are gated on it.
+  holder's zero-knowledge proof is verified on-chain (Protocol 25 primitives —
+  the real verifier is milestone M3; a mock stands in today), a pass is
+  attested, and payouts are gated on it.
 
 A **Noir → UltraHonk** proof, generated on the holder's device, is the bridge.
 
@@ -33,10 +34,18 @@ See [`DRIPS.md`](./DRIPS.md).
 
 ## Status
 
-Pre-MVP. The on-chain layer is deployed and verified on Stellar testnet; the
-circuit compiles and its hashing is conformance-checked against the SDK and
-Soroban. See [`ROADMAP.md`](./ROADMAP.md), [`HANDOFF.md`](./HANDOFF.md),
-[`COMPONENTS.md`](./COMPONENTS.md).
+**Pre-MVP research build.** What's real: the attestation contracts are deployed
+to Stellar testnet and the `register → post_root → enter → is_cleared` flow
+executes on-chain, with the policy binding (roots, tier, issuer allowlist,
+time-skew, nullifier uniqueness) enforced. What's *not* yet real: ZK
+verification (mocked — M3), a working revocation accumulator (the current
+approach is unsound — see [`docs/CREDENTIAL_ACCUMULATOR.md`](./docs/CREDENTIAL_ACCUMULATOR.md)),
+and the Midnight↔Stellar bridge (the two chains use incompatible fields — same
+doc). The circuit compiles and its BN254 hashing is conformance-checked against
+the SDK and Soroban.
+
+See [`AUDIT.md`](./AUDIT.md), [`ROADMAP.md`](./ROADMAP.md),
+[`HANDOFF.md`](./HANDOFF.md), [`COMPONENTS.md`](./COMPONENTS.md).
 
 | Component | Repo | State |
 |-----------|------|-------|

@@ -1,32 +1,21 @@
 {
   "name": "corridor",
-  "version": "1.0.0",
+  "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "description": "A Midnight Network application created with create-mn-app",
-  "author": "",
-  "license": "MIT",
+  "description": "Corridor — hub repo: the Midnight credential contract + docs. Other components live in Sconce-Labs/corridor-{contracts,circuits,sdk,relayer}.",
+  "license": "Apache-2.0",
   "scripts": {
-    "compile": "compact compile contracts/counter.compact contracts/managed/counter",
-    "dev:frontend": "vite",
-    "build:frontend": "vite build",
-    "preview": "vite preview",
-    "build": "npx tsc --noEmit || true",
-    "setup": "npx tsx src/setup.ts",
-    "deploy": "npx tsx src/deploy.ts",
-    "cli": "npx tsx src/cli.ts",
-    "check-balance": "npx tsx src/check-balance.ts",
-    "network": "npx tsx src/network.ts",
+    "compile": "compact compile contracts/corridor.compact contracts/managed/corridor",
     "proof-server:start": "docker compose up -d",
     "proof-server:stop": "docker compose down",
-    "clean": "rm -rf contracts/managed .midnight-state.json .midnight-wallet-state",
-    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
-    "test:e2e": "tsx scripts/e2e-check.ts"
+    "midnight:deploy": "tsx midnight/deploy.ts",
+    "midnight:setup": "tsx midnight/setup.ts",
+    "midnight:cli": "tsx midnight/cli.ts"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",
-    "@midnight-ntwrk/dapp-connector-api": "^4.0.1",
     "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
-    "@midnight-ntwrk/midnight-js-dapp-connector-proof-provider": "^4.1.1",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.1.1",
     "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.1.1",
@@ -37,20 +26,14 @@
     "@midnight-ntwrk/midnight-js-utils": "4.1.1",
     "@midnight-ntwrk/wallet-sdk": "1.2.0",
     "@scure/bip39": "2.2.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
     "rxjs": "^7.8.2",
     "ws": "^8.21.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
     "@types/ws": "^8.18.1",
-    "@vitejs/plugin-react": "^4.5.0",
     "tsx": "^4.23.1",
-    "typescript": "^6.0.3",
-    "vite": "^6.3.0"
+    "typescript": "^5.6.0"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -58,10 +41,5 @@
   "overrides": {
     "@midnight-ntwrk/onchain-runtime-v3": "3.0.0"
   },
-  "keywords": [
-    "midnight",
-    "blockchain",
-    "zero-knowledge",
-    "privacy"
-  ]
+  "keywords": ["midnight", "stellar", "zero-knowledge", "privacy", "kyc"]
 }

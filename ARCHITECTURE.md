@@ -8,13 +8,20 @@ cleared, then reuses a zero-knowledge proof of that fact across any number of
 payment providers ("corridors") **without re-uploading documents and without
 revealing their identity**.
 
+> **This document describes the target design.** Two load-bearing assumptions
+> in it are currently unresolved — see [`AUDIT.md`](./AUDIT.md) and
+> [`docs/CREDENTIAL_ACCUMULATOR.md`](./docs/CREDENTIAL_ACCUMULATOR.md): (1) the
+> Midnight↔Stellar shared-Merkle-root bridge cannot work as written (BLS12-381
+> vs BN254), and (2) on-chain ZK verification is mocked pending M3. The
+> recommended fix (issuer-signed statements) simplifies §2–§6 considerably.
+
 The system spans **two networks by design**, each doing the job it is best at:
 
 | Layer | Network | Role |
 |-------|---------|------|
 | **Credential custody & issuance** | **Midnight** (Compact) | A regulated issuer writes a credential the holder privately owns. Confidential persistent state — attribute values live in the holder's Midnight private state, never on any transparent ledger. |
 | **Eligibility proof** | **Noir → UltraHonk** (client-side) | The holder generates a succinct proof that they hold a valid, unexpired, unrevoked credential of sufficient tier for a specific corridor, plus a per-corridor nullifier. |
-| **Policy, verification, attestation, settlement** | **Stellar / Soroban** (Rust) | Corridor operators register policy. The proof is verified on-chain via Protocol 25 primitives. A pass is attested, the nullifier is burned, and payment can be gated on the result. |
+| **Policy, verification, attestation, settlement** | **Stellar / Soroban** (Rust) | Corridor operators register policy. The proof is verified on-chain via Protocol 25 primitives (real verifier = M3; a mock stands in today). A pass is attested, the nullifier is burned, and payment can be gated on the result. |
 
 Neither network is asked to do the other's job. Midnight is not good at being a
 payments rail; Stellar's base layer is not good at holding confidential

@@ -138,14 +138,17 @@ Deployer key `corridor`: `GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR
 
 ---
 
-## 6. Cleanup still owed (in the hub repo)
+## 6. Cleanup (done 2026-09-10 — audit M4)
 
-- Delete `contracts/counter.compact`, `tests/counter*.ts`,
-  `src/contracts/counter-contract.js`, `public/contracts/counter/`,
-  `contracts/managed/`, `dist/`, `midnight-level-db/`.
-- Move the Midnight deploy/CLI scripts (`src/deploy.ts` etc.) into a `midnight/`
-  subdir and rename `counter` → `corridor` paths.
-- Do it as its own PR after M4 (so the Compact contract is proven first).
+- ✅ Deleted the retired `counter.compact`, the React counter frontend
+  (`src/App.tsx`, `src/components/`, `src/hooks/`), `tests/counter*`, the
+  counter ZK artifacts, `index.html` / `vite.config.ts` / `vercel.json`.
+- ✅ Moved the Midnight deploy/CLI tooling to `midnight/` (see
+  `midnight/README.md` — still references `counter`, adapt for M4).
+- Still owed: `contracts/managed/`, `dist/`, `midnight-level-db/`,
+  `node_modules/` are gitignored build dirs; the Vercel deployment
+  (`corridor-pink.vercel.app`, the repo homepage) still serves the old counter
+  UI — repoint or retire it.
 
 ---
 

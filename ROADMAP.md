@@ -34,10 +34,11 @@ the relayer, and a pilot. Milestones are sized to map onto
   Windows workaround documented.
 
 ### M2 — Noir circuit proven
-- Install `noirup`/`bbup`; `nargo check` + `nargo test` pass.
-- Pin the `poseidon` dependency; write a cross-implementation test proving the
-  Noir Poseidon2 output equals Soroban's `poseidon2_permutation` for the same
-  input. **Correctness gate.**
+- ✅ `nargo check` + `nargo test` pass (Noir 1.0.0-beta.26, `poseidon` v0.3.0),
+  CI pinned.
+- Write a cross-implementation test proving the Noir Poseidon2 output equals
+  Soroban's `poseidon2_permutation` for the same input (and the Compact tree
+  hashing). **Correctness gate.**
 - A witness builder (TS, in `corridor-sdk`) that takes credential material + a
   corridor policy and emits `Prover.toml` / the raw witness.
 - Real Merkle fixtures (a small tree with known leaves and paths).
@@ -55,8 +56,9 @@ the relayer, and a pilot. Milestones are sized to map onto
 - **Done when:** the mock is out of the critical path for at least one corridor.
 
 ### M4 — Midnight credential registry live
-- `compact compile contracts/corridor.compact` clean (fix Set/MerkleTree API
-  against CompactStandardLibrary + the docs MCP).
+- ✅ `compact compile contracts/corridor.compact` clean (verified in CI).
+- Review the issuer-auth model in `registerIssuer` / `issueCredential`
+  (currently `persistentHash(issuerSk)` as a stand-in signature).
 - Simulator tests: issuer registration, issuance, revocation, epoch bump,
   attributes never enter the circuit.
 - Deploy to Midnight Preprod; issue a handful of test credentials; read the

@@ -39,9 +39,9 @@ and [`HANDOFF.md`](./HANDOFF.md).
 | Component | Repo | State |
 |-----------|------|-------|
 | Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts) | ✅ 14 host tests, **deployed + verified end-to-end on testnet** |
-| Noir `corridor_eligibility` circuit | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits) | ✅ written, ⏳ not yet proven end-to-end |
+| Noir `corridor_eligibility` circuit | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits) | ✅ compiles + tests (Noir 1.0.0-beta.26); ⏳ not yet proven with real fixtures |
 | Real UltraHonk Soroban verifier | corridor-contracts | ❌ M3 — mock in place |
-| Midnight `corridor.compact` credential registry | this repo (`contracts/`) | ✅ written, ⏳ needs `compact compile` |
+| Midnight `corridor.compact` credential registry | this repo (`contracts/`) | ✅ compiles in CI; ⏳ needs simulator tests + Preprod deploy (M4) |
 | Root-sync relayer | corridor-relayer _(tbd)_ | ❌ M5 |
 | `@corridor/verify` SDK | [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) | ⏳ skeleton — M6 |
 | Frontend rewrite | this repo (`src/`) | ❌ M6 |

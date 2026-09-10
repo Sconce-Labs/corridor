@@ -29,10 +29,9 @@ import CompactStandardLibrary;
 //   • everything about the holder and their attributes — those never reach this
 //     contract at all; only the commitment does.
 //
-// NOTE: the exact Set / MerkleTree call surface is per CompactStandardLibrary
-// (>= 0.24). Run `compact compile contracts/corridor.compact
-// contracts/managed/corridor` with the Midnight docs MCP connected to confirm
-// method names before deploying.
+// Compiles clean with the Compact compiler in CI ("Compiling 4 circuits").
+// Still owed before deploy (M4): simulator tests, Preprod deployment, and a
+// review of the issuer-auth model (see registerIssuer / issueCredential).
 // ─────────────────────────────────────────────────────────────────────────────
 
 export ledger admin: Bytes<32>;

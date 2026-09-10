@@ -8,7 +8,7 @@ docs, the Midnight credential contract, and the frontend.
 |------|----------|----------|--------|
 | **Sconce-Labs/corridor** (this) | `ARCHITECTURE.md`, `PROPOSAL.md`, `ROADMAP.md`, `HANDOFF.md`, `DRIPS.md`, `docs/`, `contracts/corridor.compact` (Midnight), `src/` (frontend) | Compact, TS | active |
 | **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace: `corridor_registry`, `corridor_attestation`, `verifier_mock`, `corridor_types`. **Owns the public-input ABI** (`ABI.md`). | Rust / soroban-sdk 25 | deployed to testnet |
-| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit | Noir | written, unproven |
+| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit | Noir | compiles + tests; needs real fixtures |
 | **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` client SDK | TypeScript | skeleton |
 | **Sconce-Labs/corridor-relayer** _(not yet created)_ | Midnight→Stellar root-sync service | TS/Rust | roadmap M5 |
 

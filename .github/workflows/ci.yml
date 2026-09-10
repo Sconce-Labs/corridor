@@ -14,17 +14,12 @@ jobs:
   midnight:
     name: Midnight / Compact
     runs-on: ubuntu-latest
-    # The Compact contract is written but not yet API-verified against
-    # CompactStandardLibrary — see ROADMAP.md M4. Non-blocking until then.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - uses: midnightntwrk/setup-compact-action@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile credential registry
         run: compact compile contracts/corridor.compact contracts/managed/corridor
 

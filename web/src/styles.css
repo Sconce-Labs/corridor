@@ -478,6 +478,27 @@ section.band > .wrap > p.sub {
   display: grid;
   gap: 5px;
 }
+.foot-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.built {
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.built .heart {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
 .spin {
   display: inline-block;
   width: 14px;

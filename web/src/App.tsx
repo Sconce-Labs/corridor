@@ -450,8 +450,13 @@ function Footer() {
             </ul>
           </div>
         </div>
-        <div className="muted">
-          Pre-MVP research build · Apache-2.0 · not audited · testnet only
+        <div className="foot-bottom">
+          <span className="muted">
+            Pre-MVP research build · Apache-2.0 · not audited · testnet only
+          </span>
+          <span className="built">
+            Built with <span className="heart">love</span> for Stellar
+          </span>
         </div>
       </div>
     </footer>

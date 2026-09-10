@@ -28,16 +28,16 @@ number of providers, revealing nothing. Hybrid by design:
 
 | Repo | Contents | State |
 |------|----------|-------|
-| **Sconce-Labs/corridor** (this) | docs, `contracts/corridor.compact` (Midnight), `src/` (frontend) | active |
-| **Sconce-Labs/corridor-contracts** | Soroban workspace; owns `ABI.md` | ✅ 14 tests, deployed to testnet |
-| **Sconce-Labs/corridor-circuits** | `corridor_eligibility` Noir circuit | ✅ compiles + tests (beta.26) |
-| **Sconce-Labs/corridor-sdk** | `@corridor/verify` TS SDK | skeleton |
-| Sconce-Labs/corridor-relayer | root-sync service | not created (M5) |
+| **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | docs, `contracts/corridor.compact` (Midnight), `src/` (frontend, live at corridor-pink.vercel.app) | active |
+| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace; owns `ABI.md` | ✅ 14 tests + poseidon conformance, deployed to testnet |
+| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit | ✅ compiles + 3 tests (beta.26) |
+| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` TS SDK | ✅ reads + `buildWitness` real; live testnet tests |
+| **[Sconce-Labs/corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)** | root-sync service | ✅ Stellar half real; Midnight reader = M5 |
 
-Local checkouts on the original dev box: `C:/Users/samue/Documents/{corridor,
-corridor-contracts, corridor-circuits, corridor-sdk}`. **None have a git
-remote yet** — the owner must create the four GitHub repos under `Sconce-Labs`
-and `git push` (see §7).
+All 5 repos are public on GitHub with CI. Local checkouts:
+`C:/Users/samue/Documents/{corridor,corridor-contracts,corridor-circuits,corridor-sdk,corridor-relayer}`,
+each on `main` tracking its remote. `gh` is available in **WSL**
+(`wsl -e bash -lc '…'`), authed as `samjay8` (admin on the org).
 
 ---
 
@@ -66,8 +66,11 @@ trusted message. Full rationale: `PROPOSAL.md` §"Why two networks".
 | Component | Repo / path | State | Next |
 |-----------|-------------|-------|------|
 | Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 14 host tests, **deployed + verified on testnet** | real verifier (M3) |
+| Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | add the Midnight/Compact leg (M4) |
 | Public-input ABI (`PI_*`) | corridor-contracts `crates/corridor_types` + `ABI.md` | ✅ source of truth | keep circuit + SDK in sync |
-| Noir circuit | corridor-circuits | ✅ `nargo check` + `nargo test` green (beta.26) | real fixtures + witness builder (M2) |
+| Noir circuit | corridor-circuits | ✅ `nargo check` + 3 `nargo test` green (beta.26) | real Merkle fixtures (M2) |
+| SDK `getPolicy`/`isCleared`/`passes`/`buildWitness` | corridor-sdk | ✅ real, live testnet tests | `requestProof` + `enter` clients (M6) |
+| Relayer Stellar read/write | corridor-relayer | ✅ real (`currentEpoch`, `postRoot`) | `readRoots` from Midnight indexer (M5) |
 | Poseidon2 cross-chain domain match | circuit ↔ host fn ↔ Compact | ❌ | conformance test (M2) — hard gate |
 | Real UltraHonk verifier | corridor-contracts | ❌ | wire `indextree/ultrahonk_soroban_contract` (M3) |
 | Midnight credential registry | this repo `contracts/corridor.compact` | ✅ compiles in CI | simulator tests + Preprod (M4) |
@@ -97,12 +100,12 @@ Deployer key `corridor`: `GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR
 1. **`verifier_mock` returns `true` by default.** Every happy-path test (and the
    testnet demo) trusts the mock. Real soundness starts at M3.
 
-2. **Poseidon2 must match across chains.** The circuit uses
-   `noir-lang/poseidon` v0.3.0. Nobody has yet checked that its permutation is
-   byte-identical to Soroban's `poseidon2_permutation` host function and the
-   Compact tree hashing. If they differ, the Merkle roots on Midnight, in the
-   circuit, and checked on Stellar silently disagree. Conformance test = hard
-   gate before M3.
+2. **Poseidon2 — 3 of 4 legs verified.** `poseidon2([1,2]) == 0x038682…1ed7383`
+   is asserted in the circuit (`noir-lang/poseidon` v0.3.0), the SDK
+   (`@zkpassport/poseidon2`), and `corridor-contracts` (`rs-soroban-poseidon`),
+   and they match. **The Midnight/Compact tree hash is NOT yet checked** — M4
+   must confirm it produces the same vector, or credentials issued on Midnight
+   won't verify against on Stellar.
 
 3. **The relayer is trusted in the MVP.** `post_root` is
    permissionless-but-logged. A dishonest root admits bad credentials or
@@ -146,31 +149,29 @@ Deployer key `corridor`: `GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR
 
 ---
 
-## 7. Push checklist (owner action — no remotes exist yet)
+## 7. Drips Wave — remaining owner action
 
-For each of the four local repos:
+All 5 repos are pushed with CI. What's left:
 
-```bash
-gh repo create Sconce-Labs/<name> --public --source . --remote origin --push
-# or: create on github.com, then
-git remote add origin https://github.com/Sconce-Labs/<name>.git && git push -u origin main
-```
-
-- `corridor` — current branch is `feat/stellar-hybrid`; open a PR into `main`
-  (or push `main` directly if you prefer). Contains commits `e05cf9a` (hybrid
-  re-scope) + the split commit.
-- `corridor-contracts`, `corridor-circuits`, `corridor-sdk` — each has one
-  `main` commit (`chore: initial import`). Push as-is.
-
-Then list `corridor` and `corridor-contracts` on `drips.network` (Stellar Wave)
-and open the issues from [`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md).
+1. **List the repos on [drips.network](https://www.drips.network/wave/stellar)**
+   (Stellar Wave) — at least `corridor` and `corridor-contracts`.
+2. **Open the issues** from [`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md) in
+   the repo each belongs to (that file's header table maps them). The label set
+   (`drips`, `milestone: M*`, `complexity: *`, `area: *`, `good first issue`)
+   already exists in every repo.
 
 ---
 
-## 8. Immediate next actions
+## 8. Immediate next actions (engineering)
 
-1. Push the four repos (§7).
-2. `cd corridor-contracts && cargo test --workspace` — confirm green on your box.
-3. Install `noirup`/`bbup`; `cd corridor-circuits/corridor_eligibility && nargo check`.
-4. Pin the `poseidon` dep and write the Poseidon2 conformance test (ROADMAP M2).
-5. Open the Drips issues; then work M2 → M3 per [`ROADMAP.md`](./ROADMAP.md).
+1. **M2 finish** — real Merkle fixtures in `corridor-circuits`: a committed
+   small tree + a generator that feeds both `nargo execute` and the SDK's
+   `buildWitness`, then `bb prove` / `bb verify` on it.
+2. **M3 start** — vendor `indextree/ultrahonk_soroban_contract` into
+   `corridor-contracts/contracts/ultrahonk_verifier` behind the `Verifier`
+   interface; generate the VK from the M2 circuit; end-to-end proof → `enter`
+   on testnet.
+3. **M4** — `corridor.compact` simulator tests + Preprod deploy; add the
+   Midnight leg to the Poseidon2 conformance table in `ABI.md`.
+4. **M5** — `corridor-relayer` `IndexerMidnightReader.readRoots` against the
+   Midnight indexer (needs M4).

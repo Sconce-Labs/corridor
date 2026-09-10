@@ -33,18 +33,19 @@ the relayer, and a pilot. Milestones are sized to map onto
 - ⏳ Remaining: wire the CI `stellar` job on a real push; `.cargo/config.toml`
   Windows workaround documented.
 
-### M2 — Noir circuit proven
+### M2 — Noir circuit proven  ·  mostly ✅
 - ✅ `nargo check` + `nargo test` pass (Noir 1.0.0-beta.26, `poseidon` v0.3.0),
   CI pinned.
-- Write a cross-implementation test proving the Noir Poseidon2 output equals
-  Soroban's `poseidon2_permutation` for the same input (and the Compact tree
-  hashing). **Correctness gate.**
-- A witness builder (TS, in `corridor-sdk`) that takes credential material + a
-  corridor policy and emits `Prover.toml` / the raw witness.
-- Real Merkle fixtures (a small tree with known leaves and paths).
-- **Done when:** `nargo execute` + `bb prove` + `bb verify` succeed on a
-  fixture, and the public-input vector round-trips through
-  `corridor_types::PublicInputs::decode`.
+- ✅ Poseidon2 conformance: `poseidon2([1,2]) == 0x038682…1ed7383` asserted in
+  the circuit, `corridor-sdk` (`@zkpassport/poseidon2`), and
+  `corridor-contracts/crates/poseidon_conformance` (`rs-soroban-poseidon`) —
+  circuit ⇄ SDK ⇄ Soroban agree. (Midnight/Compact leg → M4.)
+- ✅ Witness builder: `corridor-sdk` `buildWitness` assembles the 9-field public
+  vector + private witness and re-derives the roots.
+- ⏳ Real Merkle fixtures — a committed small tree with known leaves/paths, and
+  a fixture generator feeding both `nargo execute` and the SDK.
+- **Done when:** `nargo execute` + `bb prove` + `bb verify` succeed on a fixture
+  built by `buildWitness`.
 
 ### M3 — Real verifier on Stellar
 - Vendor / adapt `indextree/ultrahonk_soroban_contract` as
@@ -67,21 +68,26 @@ the relayer, and a pilot. Milestones are sized to map onto
 - **Done when:** a credential issued on Preprod produces a commitment that a
   Noir proof can include against the on-chain root.
 
-### M5 — Root-sync relayer
-- `relayer/` service: watch Midnight `credentials` / `revoked` / `epoch`, call
-  `corridor_registry.post_root` when the epoch advances.
-- Config: which corridors, which Midnight endpoint, signing key, poll interval.
-- Trust reduction step 1: run ≥2 independent relayers; `post_root` accepts a
-  root only when it matches across a quorum for an epoch (contract change).
-- Observability: alert on epoch divergence between relayers.
+### M5 — Root-sync relayer  ·  half ✅
+- ✅ `corridor-relayer` service scaffold: config loader, poll loop, alerting,
+  Dockerfile, CI. `SorobanRegistryWriter` reads `root_epoch` and submits
+  `post_root` for real (never retries a rejected epoch).
+- ⏳ `IndexerMidnightReader.readRoots` — GraphQL against the Midnight indexer for
+  the `credentials` / `revoked` tree roots + `epoch`. Needs `corridor.compact`
+  live on Preprod (M4).
+- ⏳ Trust reduction step 1: run ≥2 independent relayers; `post_root` accepts a
+  root only when N agree for an epoch (contract change).
+- ⏳ Observability: alert on epoch divergence between relayers.
 - **Done when:** a credential issued on Preprod is usable on a Stellar corridor
   within one poll interval, with no manual step.
 
 ### M6 — SDK + apps
-- `corridor-sdk` (`@corridor/verify`): policy fetch, witness build, proof
-  request (delegates proving to a local prover or the wallet), `enter` submit
-  via a **fee-sponsored relayer** (holder's account stays unlinked), and
-  `isCleared`. Flesh out the skeleton that's already there.
+- ✅ `corridor-sdk` reads (`getPolicy` / `isCleared` / `passes`) and
+  `buildWitness` are real.
+- ⏳ `requestProof` — stand up a local Noir prover the SDK POSTs the witness to
+  (proving never leaves the device).
+- ⏳ `enter` via a **fee-sponsored relayer** so the holder's Stellar account
+  stays unlinked from the pass.
 - Issuer CLI (in `corridor-sdk` or its own repo): KYC-result in → commitment +
   Midnight `issueCredential` call.
 - Frontend rewrite (`src/`):

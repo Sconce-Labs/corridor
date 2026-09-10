@@ -33,18 +33,21 @@ See [`DRIPS.md`](./DRIPS.md).
 
 ## Status
 
-Pre-MVP, mid-port from a single-chain prototype. See [`ROADMAP.md`](./ROADMAP.md)
-and [`HANDOFF.md`](./HANDOFF.md).
+Pre-MVP. The on-chain layer is deployed and verified on Stellar testnet; the
+circuit compiles and its hashing is conformance-checked against the SDK and
+Soroban. See [`ROADMAP.md`](./ROADMAP.md), [`HANDOFF.md`](./HANDOFF.md),
+[`COMPONENTS.md`](./COMPONENTS.md).
 
 | Component | Repo | State |
 |-----------|------|-------|
 | Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts) | ✅ 14 host tests, **deployed + verified end-to-end on testnet** |
-| Noir `corridor_eligibility` circuit | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits) | ✅ compiles + tests (Noir 1.0.0-beta.26); ⏳ not yet proven with real fixtures |
+| Poseidon2 hash conformance (circuit ⇄ SDK ⇄ Soroban) | contracts / circuits / sdk | ✅ pinned vector matches across all three |
+| Noir `corridor_eligibility` circuit | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits) | ✅ compiles + 3 tests (Noir 1.0.0-beta.26); ⏳ real Merkle fixtures pending |
+| `@corridor/verify` SDK | [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) | ✅ `getPolicy` / `isCleared` / `passes` / `buildWitness` real (live testnet tests); prover + relayer clients pending |
+| Root-sync relayer | [corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer) | ✅ Stellar read/write real; Midnight reader pending (M5) |
 | Real UltraHonk Soroban verifier | corridor-contracts | ❌ M3 — mock in place |
-| Midnight `corridor.compact` credential registry | this repo (`contracts/`) | ✅ compiles in CI; ⏳ needs simulator tests + Preprod deploy (M4) |
-| Root-sync relayer | corridor-relayer _(tbd)_ | ❌ M5 |
-| `@corridor/verify` SDK | [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) | ⏳ skeleton — M6 |
-| Frontend rewrite | this repo (`src/`) | ❌ M6 |
+| Midnight `corridor.compact` credential registry | this repo (`contracts/`) | ✅ compiles in CI; ⏳ simulator tests + Preprod deploy (M4) |
+| Frontend rewrite | this repo (`src/`) — [live: corridor-pink.vercel.app](https://corridor-pink.vercel.app) | ❌ still the single-chain UI — M6 |
 
 ### Contract addresses
 

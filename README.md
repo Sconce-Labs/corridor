@@ -1,6 +1,11 @@
+<img src="assets/logo.svg" alt="Corridor" width="96" align="left" />
+
 # Corridor
 
 [![CI](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml/badge.svg)](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml)
+
+<br clear="left" />
+
 
 > Portable proof of eligibility for cross-border payments. Do KYC once with a
 > regulated issuer; prove you're cleared to any payment corridor — without

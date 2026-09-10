@@ -72,3 +72,4 @@ temp/
 # Midnight wallet sync state (per-network serialized wallet state cache)
 .midnight-wallet-state/
 .vercel
+assets/node_modules/

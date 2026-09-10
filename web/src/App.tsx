@@ -98,7 +98,7 @@ const STEPS = [
   },
   {
     h: "Stellar attests",
-    p: "corridor_attestation.enter() binds the proof to the on-chain policy, verifies it, burns the nullifier once, and records a pass. Protocol 25 primitives.",
+    p: "corridor_attestation.enter() binds the proof to the on-chain policy, calls the policy's verifier, burns the nullifier once, and records a pass. The policy binding is live on testnet; the UltraHonk verifier is a mock until milestone M3.",
   },
   {
     h: "Payout gates",
@@ -339,10 +339,15 @@ function ClearanceChecker() {
           <div className="card">
             <h3>What this proves</h3>
             <p className="muted">
-              A <code>true</code> means someone presented a valid proof to this
-              corridor and burned that nullifier — they cleared the policy
-              (accepted issuer, minimum tier, unexpired, above the revocation
-              floor, within the time-skew window).
+              A <code>true</code> means a proof was presented for this corridor
+              and that nullifier was burned, with the policy binding enforced
+              on-chain — accepted issuer, minimum tier, revocation floor, auditor
+              key, time-skew window.
+            </p>
+            <p className="notice">
+              On testnet the ZK proof itself is checked by a <em>mock</em>
+              verifier (milestone M3). So `true` here attests the policy binding
+              and one-time use — not yet the cryptographic proof.
             </p>
             <p className="muted">
               It does <em>not</em> reveal who. The nullifier is{" "}

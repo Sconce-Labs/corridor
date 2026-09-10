@@ -5,8 +5,9 @@ import "./styles.css";
 import { App } from "./App";
 
 // @stellar/stellar-sdk expects a global Buffer in the browser.
-if (typeof globalThis.Buffer === "undefined") {
-  globalThis.Buffer = Buffer;
+const g = globalThis as unknown as { Buffer?: typeof Buffer };
+if (typeof g.Buffer === "undefined") {
+  g.Buffer = Buffer;
 }
 
 createRoot(document.getElementById("root")!).render(

@@ -1,0 +1,6 @@
+# Windows GNU (`x86_64-pc-windows-gnu`) `ld` cannot build the host `cdylib`
+# for soroban-sdk's dependency tree — "export ordinal too large". Host test
+# builds don't need the exported contract symbols, so suppress auto-export.
+# Harmless on Linux CI (different target key). Does not affect `wasm32v1-none`.
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-arg=-Wl,--exclude-all-symbols"]

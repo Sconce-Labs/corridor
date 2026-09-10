@@ -2,153 +2,114 @@
 
 [![CI](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml/badge.svg)](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml)
 
-> A portable proof of eligibility — prove you're cleared to pass a payment corridor, without revealing who you are.
+> Portable proof of eligibility for cross-border payments. Do KYC once with a
+> regulated issuer; prove you're cleared to any payment corridor — without
+> re-uploading documents and without revealing who you are.
 
-## Live Demo
+Corridor spans **two networks by design**:
 
-https://corridor-pink.vercel.app
+- **Midnight** holds the credential. A regulated issuer records a commitment;
+  the holder keeps the attributes in their own confidential state.
+- **Stellar / Soroban** runs the corridors. Operators register a policy, the
+  holder's zero-knowledge proof is verified on-chain (Protocol 25 primitives),
+  a pass is attested, and payouts are gated on it.
 
-## Contract Address
+A **Noir → UltraHonk** proof, generated on the holder's device, is the bridge.
 
-| Network  | Address                                                              |
-|----------|----------------------------------------------------------------------|
-| Preview  | `2883f006dcf296722ac6f0da3bf46578b4dfbbc2bebf915a0fb4e302d8a89a12`  |
-| Preprod  | *(deploy in progress — paste address here once deployed)*             |
+See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full design and
+[`PROPOSAL.md`](./PROPOSAL.md) for the pitch.
 
-## What This Does
+## Origin & participation
 
-Corridor is a privacy-preserving dApp built on the Midnight Network. It lets
-someone prove they hold a valid eligibility credential for a payment corridor
-(zero-knowledge proof) **without revealing their identity or credential
-details**.
+Corridor started as a project on **[Rise In](https://www.risein.com/)** — the
+"New Moon to Full" Midnight Builder Challenge — where the single-chain
+credential circuit and first frontend were built. It has since been re-scoped
+as a hybrid **Midnight + Stellar** product and will **participate in the
+[Stellar Drips Wave](https://www.drips.network/wave/stellar)**, where
+contributors earn from an SDF-funded pool by closing issues with merged PRs.
+See [`DRIPS.md`](./DRIPS.md).
 
-**How it works:**
+## Status
 
-1. **Connect** your Lace wallet to the dApp.
-2. **Enter the corridor** by calling the `enterCorridor` circuit with a
-   private entitlement value and a public entry tag.
-3. The circuit generates a **zero-knowledge proof locally in your browser**
-   — your private input never leaves your device.
-4. The proof is verified and submitted on-chain. An observer sees only that a
-   pass was granted and which tag was disclosed, never *who* was granted or
-   *what* their entitlement was.
+Pre-MVP, mid-port from a single-chain prototype. See [`ROADMAP.md`](./ROADMAP.md)
+and [`HANDOFF.md`](./HANDOFF.md).
 
-**The privacy model in action:**
+| Component | State |
+|-----------|-------|
+| Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | ✅ implemented, 14 host tests, **deployed + verified end-to-end on testnet** |
+| Noir `corridor_eligibility` circuit | ✅ written, ⏳ not yet proven end-to-end (`circuits/`) |
+| Real UltraHonk Soroban verifier | ❌ M3 — mock in place |
+| Midnight `corridor.compact` credential registry | ✅ written, ⏳ needs `compact compile` verification (`contracts/`) |
+| Root-sync relayer | ❌ M5 |
+| `@corridor/verify` SDK + frontend rewrite | ❌ M6 |
 
-- A migrant worker proves they hold a valid KYC credential — the corridor
-  accepts the proof without learning their name, passport number, or
-  entitlement level.
-- An aid recipient proves eligibility for a disbursement — the system gates
-  access without holding any identity documents.
+### Contract addresses
 
-## Privacy Model
+| Network | Contract | Address |
+|---------|----------|---------|
+| Stellar Testnet | `corridor_registry` | `CB6LZV6TJN6YZ2O7FVLNRCJMRVBXCDG6JFFREHGY2BD5K4EYWJ6WKT2K` |
+| Stellar Testnet | `corridor_attestation` | `CCAGXABIZWHNLA754LSQCFPA35VLJZEH24MD5OGJNIEMFQHZ7LWQD5AR` |
+| Stellar Testnet | `verifier_mock` (placeholder — M3) | `CDT4ZVOIAI5JN4TC3WZYIBJ3NOJENZWKD2ZNOTSVVZBZBZ5GMOSNJEQP` |
+| Midnight Preview | `corridor.compact` (legacy `counter`) | `2883f006dcf296722ac6f0da3bf46578b4dfbbc2bebf915a0fb4e302d8a89a12` |
 
-- **What is PUBLIC (on-chain, visible to anyone):**
-  - `passes` — the aggregate number of corridor passes granted.
-  - `lastEntryTag` — the entry tag the caller deliberately disclosed (e.g.
-    `"tier-2-pass"`, `"aid-disbursement"`).
+Full deployment record + smoke-test tx hashes: [`stellar/deployments/testnet.json`](./stellar/deployments/testnet.json).
+End-to-end verified on testnet: `register` → `post_root` → `enter` → `is_cleared == true`, replay rejected.
 
-- **What is PRIVATE (never on-chain):**
-  - `entitlement` — the caller's private entitlement value (0–1000), held
-    only in the wallet. The circuit checks it is non-zero but never writes
-    it to the ledger.
+## Repository layout
 
-- **What the user PROVES without revealing:**
-  - That they hold a non-zero entitlement to pass — without revealing the
-    entitlement's value, their identity, or any other personal data.
+```
+contracts/   Midnight credential registry (Compact)
+circuits/    Noir eligibility circuit
+stellar/     Soroban workspace (Rust): registry, attestation, mock verifier
+src/         React frontend (holder + operator UIs — mid-rewrite)
+docs/        usage + design notes
+```
 
-## Privacy Claim
+## Privacy model
 
-**On-chain observer sees:** that *someone* entered the corridor and which
-entry tag was disclosed (e.g. `"tier-2-pass"`). The aggregate pass count
-increments by 1.
+**A Stellar observer sees:** a pass was granted on corridor C, a tag index, an
+aggregate counter, a burned nullifier. Proofs are submitted via a fee-sponsored
+relayer so the holder's Stellar account is not linked.
 
-**On-chain observer CANNOT see:** the caller's identity, wallet address
-(the proof is shielded), entitlement value, or any personal data. The
-zero-knowledge proof is generated locally in the browser wallet — the
-entitlement never leaves the user's device.
+**A Midnight observer sees:** issuer X recorded (or revoked) *a* credential at
+epoch N.
 
-## Tech Stack
+**Nobody sees, on either chain:** the holder's identity, documents, tier,
+expiry, the issuer↔holder link, or the holder's activity across corridors
+(nullifiers are per-corridor and mutually unlinkable).
 
-- **Midnight Network** — privacy-preserving blockchain for zero-knowledge
-  smart contracts
-- **Compact Language** — zero-knowledge circuit compiler for Midnight
-  contracts
-- **Midnight.js SDK** — TypeScript SDK for wallet connection, proof
-  generation, and contract interaction
-- **DApp Connector API** — browser extension wallet integration (Lace)
-- **React + Vite** — frontend framework and build tool
-- **TypeScript** — type-safe development across contract and frontend
+**A warranted auditor sees:** only the `{tier, issuer}` for the specific passes
+they hold a warrant for.
 
-## Prerequisites
-
-- [Lace wallet](https://lace.io) browser extension (Midnight wallet)
-- Node.js v22+ (`node --version`)
-- Midnight testnet tokens (tNIGHT) from the Preprod faucet
-
-## Setup & Run Locally
+## Quickstart
 
 ```bash
-# 1. Clone the repo
 git clone https://github.com/Sconce-Labs/corridor.git
 cd corridor
 
-# 2. Install dependencies
-npm install
+# Stellar contracts
+cd stellar && cargo test --workspace && cd ..
 
-# 3. Compile the contract (requires Compact compiler)
-npm run compile
+# Noir circuit  (needs noirup + bbup)
+cd circuits/corridor_eligibility && nargo test && cd ../..
 
-# 4. Deploy to Preprod (or use an existing deployment)
-#    You'll need tNIGHT from the Preprod faucet:
-#    https://midnight-tmnight-preprod.nethermind.dev
-npm run deploy -- --network preprod
-
-# 5. Start the frontend dev server
-npm run dev:frontend
-
-# 6. Open http://localhost:5173 in your browser with Lace wallet installed
+# Midnight contract  (needs the Compact compiler)
+compact compile contracts/corridor.compact contracts/managed/corridor
 ```
 
-**Environment variables:**
+Per-layer detail: [`stellar/README.md`](./stellar/README.md),
+[`circuits/README.md`](./circuits/README.md).
 
-Copy `.env.example` to `.env` and set your deployed contract address:
+## Contributing / Drips Wave
 
-```bash
-cp .env.example .env
-# Edit .env and set VITE_CONTRACT_ADDRESS to your deployed address
-```
+Corridor is built to be worked on in the open. See [`DRIPS.md`](./DRIPS.md) for
+the issue map and how contributions are rewarded through the Stellar Drips Wave.
 
-## Run Tests
+## Tech stack
 
-```bash
-npm test
-```
+Midnight · Compact · Noir · UltraHonk · Stellar · Soroban (Rust, `soroban-sdk`
+25) · Protocol 25 (BN254, Poseidon2) · React + Vite · TypeScript
 
-## CI/CD
+## License
 
-The project uses GitHub Actions for continuous integration. The pipeline runs
-on every push to `main` and on pull requests:
-
-1. **Checkout** — pulls the latest code
-2. **Install dependencies** — `npm install`
-3. **Install Compact compiler** — via the official `setup-compact-action`
-4. **Compile contract** — `compact compile` verifies the contract builds
-5. **Run tests** — all 8+ unit tests must pass
-
-If any step fails, the pipeline breaks and a red badge appears in the README.
-See the workflow at `.github/workflows/ci.yml`.
-
-## Product Proposal
-
-See [PROPOSAL.md](./PROPOSAL.md) for the product proposal.
-
-## Demo Video
-
-[Demo Video — wallet connect + circuit call](https://drive.google.com/file/d/1r3sODDlYRIyHeKZhMAHLJtjTa906lw-f/view?usp=drive_link)
-
-## Screenshots
-
-* [Deployed Address](https://github.com/user-attachments/assets/6b9c99f6-9aaf-425f-a535-820378843df3)
-* [Compile Output](https://github.com/user-attachments/assets/166e817b-c14c-41f0-ada4-30d2d99382d5)
-* [Test Output — 8 tests passing](https://github.com/user-attachments/assets/d1c974cd-7c98-480e-86fc-6c6ba29a40c0)
+Apache-2.0

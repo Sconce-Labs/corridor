@@ -1,0 +1,20 @@
+{
+  "network": "testnet",
+  "networkPassphrase": "Test SDF Network ; September 2015",
+  "rpcUrl": "https://soroban-testnet.stellar.org",
+  "deployedAt": "2026-09-10",
+  "deployer": "GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR2O",
+  "contracts": {
+    "verifier_mock": "CDT4ZVOIAI5JN4TC3WZYIBJ3NOJENZWKD2ZNOTSVVZBZBZ5GMOSNJEQP",
+    "corridor_registry": "CB6LZV6TJN6YZ2O7FVLNRCJMRVBXCDG6JFFREHGY2BD5K4EYWJ6WKT2K",
+    "corridor_attestation": "CCAGXABIZWHNLA754LSQCFPA35VLJZEH24MD5OGJNIEMFQHZ7LWQD5AR"
+  },
+  "smokeTest": {
+    "corridor_id": "0x0000000000000000000000000000000000000000000000000000000000000004",
+    "register_tx": "43d20c22e25c51a9bce4ffede6a37e002d14a5fe5906465bf9bacdaa72448a08",
+    "post_root_tx": "fd102ada32f6b5a4e022111fc0fb6904f423b29fedbaa7205fad06ec40e26940",
+    "enter_tx": "4d7df1e0f1eb7cf3032f99a0d2619bc38a167094c0b3b8ea10e7b83c56d580ea",
+    "result": "is_cleared == true, passes == 1, replay rejected with Error #12 (NullifierUsed)"
+  },
+  "notes": "verifier_mock is a placeholder that returns true — see ROADMAP.md M3 for the real UltraHonk verifier."
+}

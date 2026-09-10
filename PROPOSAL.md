@@ -1,117 +1,124 @@
-# Product Proposal
+# Corridor — Product Proposal
 
 ## What is the product, and who uses it?
 
-Corridor is a portable proof of eligibility that lets someone move through a
-payment corridor showing only that they're cleared to pass — never who they are.
+Corridor is a **portable proof of eligibility** for cross-border payments. A
+person completes KYC/AML **once** with a regulated issuer, receives a
+credential, and from then on proves "I am cleared to use this payment corridor"
+to any number of providers — **without re-submitting documents and without
+revealing their identity**.
 
 **Who uses it:**
 
-- **Migrant workers** who send remittances through Stellar-based anchors. Today
-  they upload a passport scan and liveness selfie to every new provider — each
-  one now holds a copy of their identity documents. Corridor lets them prove
-  "I hold a valid KYC Tier 2 credential" once, then reuse that proof across
-  any number of corridors without re-uploading anything.
+- **Remittance senders / migrant workers.** Today they upload a passport scan
+  and a liveness selfie to every new anchor or wallet. Each provider becomes a
+  custodian of their identity documents. Corridor replaces that with a
+  reusable zero-knowledge proof.
+- **Aid recipients** served by multiple NGOs, each running its own onboarding.
+  One issuer verifies; every participating disbursement program gates on the
+  proof without holding documents.
+- **Stellar anchors, remittance corridors, lending pools, disbursement
+  platforms.** They need to know a counterparty is eligible; they do **not**
+  want the liability of storing identity data. They receive a proof and an
+  on-chain attestation, never a document.
+- **Regulated issuers** — banks, licensed KYC providers, NGOs — that want to
+  issue a verifiable credential without becoming the data custodian for every
+  downstream service that relies on it.
+- **Regulators**, who get a warrant-scoped audit path instead of either total
+  opacity or bulk data access.
 
-- **Aid recipients** in regions served by multiple NGOs. Each organization runs
-  its own KYC onboarding. Corridor lets an issuer verify once, and every
-  participating NGO can gate disbursements to verified recipients without
-  holding identity documents.
+## Why two networks?
 
-- **Regulated issuers** — banks, licensed KYC providers, NGOs — who want to
-  issue verifiable credentials without becoming data custodians for every
-  consuming service. Corridor gives them a way to issue once and let the
-  credential be used privately across multiple downstream consumers.
+Corridor deliberately uses **Midnight for the credential** and **Stellar for
+the corridors**, because the two jobs have opposite requirements.
 
-- **Stellar service providers** — remittance corridors, lending pools, aid
-  disbursement platforms — who need to verify eligibility but don't want the
-  liability of holding identity data. They receive a ZK proof, not a document.
+**The credential needs confidential, persistent, shared state.** An issuer
+writes something a specific holder privately owns and can later prove against,
+and that must not be visible to anyone else — not the other issuers, not the
+corridors, not chain analysts. Midnight's confidential-logic layer is built for
+exactly this: private witnesses never touch the ledger, and `disclose()` makes
+selective publication a first-class operation. A transparent chain would force
+the issuer to encrypt off-chain and manage key distribution.
 
-## Why Midnight specifically?
+**The corridor needs cheap, public, high-throughput settlement with native
+proof verification.** Stellar is a payments network first, and since **Protocol
+25 ("X-Ray", Jan 2026)** Soroban has native BN254 and Poseidon2 host functions
+— on-chain zero-knowledge proof verification at low cost. The corridor policy,
+the proof check, the nullifier ledger, and the payout gate all belong here,
+next to the money.
 
-Transparent chains treat "proving you're eligible" and "revealing your entire
-identity" as the same act. On Ethereum, Solana, or even Stellar's base layer,
-a credential presentation is a public transaction — anyone can see who
-presented what to whom. Midnight's confidential-logic layer solves this at the
-protocol level:
+**The bridge is a proof, not a message.** The holder generates a **Noir →
+UltraHonk** proof on their own device that binds a Midnight credential root to a
+Stellar corridor policy and emits a per-corridor nullifier. Stellar verifies it
+natively. No chain is asked to interpret the other's state; only a succinct
+proof crosses.
 
-1. **Private witnesses stay private.** The entitlement value (the credential
-   claim) is a private circuit input — it never touches the ledger. The circuit
-   proves the claim is valid without ever writing it on-chain.
-
-2. **Selective disclosure is native.** The `disclose()` primitive lets the
-   contract author choose exactly which data points become public (here, just
-   an entry tag and an aggregate counter). On a transparent chain, you'd need
-   custom encryption or off-chain attestations to achieve the same.
-
-3. **Proofs are user-generated.** The ZK proof is generated locally in the
-   browser wallet — Midnight's DApp connector API feeds the private witness
-   into the prover, and only the proven statement reaches the chain. This means
-   no custodian ever holds the raw credential during the proof step.
-
-4. **Settlement is separate from identity.** Corridor pairs Midnight (identity
-   and proof logic) with Stellar (money movement). Neither chain is asked to
-   do the other's job. A transparent chain would force either the identity
-   work or the settlement into a less suitable environment.
-
-**In short:** a transparent chain would require Corridor to encrypt
-credentials off-chain, manage key distribution, and trust relayers not to
-decrypt. Midnight makes all of that unnecessary — privacy is a property of
-the circuit, not an application-layer patch.
+Neither half is redundant. Stellar's ZK primitives verify a proof but do not
+give you a place to *hold* a confidential credential that an issuer writes and a
+holder owns. Midnight gives you that, but is not a payments rail. Corridor is
+the seam.
 
 ## Data Model
 
-| Data Point          | Type            | Disclosed To           |
-|---------------------|-----------------|------------------------|
-| `passes`            | Public ledger   | Everyone (on-chain)    |
-| `lastEntryTag`      | Public ledger   | Everyone (on-chain)    |
-| `entitlement`       | Private witness | No one (wallet only)   |
-| Caller identity     | Not stored      | No one (shielded proof)|
-| Credential details  | Not stored      | No one (off-chain)     |
+| Data Point | Type | Lives on | Disclosed to |
+|------------|------|----------|--------------|
+| Credential commitment `Poseidon2(secret, tier, expiry, issuer, salt)` | Public leaf | Midnight | Everyone (reveals nothing) |
+| Issuer id | Public | Midnight | Everyone (by design — accountability) |
+| Credential root / revocation root / epoch | Public | Midnight → synced to Stellar | Everyone |
+| Holder secret, tier, expiry, salt, Merkle paths | Private witness | Holder's device / Midnight private state | No one |
+| Corridor policy (min tier, accepted issuers, verifier, roots) | Public | Stellar | Everyone |
+| Eligibility proof + public inputs | Transient | Submitted to Stellar | Verifier only |
+| Nullifier `Poseidon2(secret, corridorId)` | Public | Stellar | Everyone (unlinkable across corridors) |
+| Disclosed tag (enum index) | Public | Stellar | Everyone |
+| `auditor_blob` — enc(`{tier, issuer}`) to the auditor key | Public | Stellar `PassRecord` | The warranted auditor only |
+| Holder identity, KYC documents | — | Nowhere on chain | The issuer only, once, off-chain |
 
-**What an on-chain observer sees:** that *someone* entered the corridor, which
-entry tag they disclosed (e.g. `"tier-2-pass"`), and that the aggregate pass
-count incremented by 1.
+**What a chain observer sees:** on Midnight, that an issuer added/revoked *a*
+credential; on Stellar, that a corridor granted *a* pass and burned a
+nullifier. **What nobody sees:** who, what tier, which issuer for which holder,
+or the holder's behaviour across corridors.
 
-**What an on-chain observer cannot see:** the caller's wallet address (the
-proof is shielded), the entitlement value, the caller's identity, or any
-credential details. The zero-knowledge proof is generated locally in the
-browser — the private input never leaves the user's device.
+## Feasibility
 
-## Mainnet Feasibility
+**On-chain layers — done or close.**
 
-**Realistic for Level 6 mainnet target?** Yes, with scoped expectations.
+- The Soroban contracts (`corridor_registry`, `corridor_attestation`, a mock
+  verifier behind a stable interface) are implemented and unit-tested. The
+  attestation flow — bind proof to policy, verify, burn nullifier, record the
+  pass, gate payout — works end to end against the mock verifier.
+- The Noir circuit is written: credential inclusion, revocation
+  non-membership, tier threshold, expiry, per-corridor nullifier, bounded
+  disclosure, auditor binding.
+- The Midnight credential registry is written in Compact.
 
-Corridor's core circuit — a single private witness checked against a public
-threshold, with one deliberate disclosure — is deliberately minimal. The
-Compact contract compiles, the in-memory simulator validates all state
-transitions, and the deployed testnet version proves the end-to-end flow
-works: wallet connects, proof generates locally, transaction submits on-chain,
-and the ledger updates without exposing the private input.
+**What stands between here and a pilot:**
 
-**What's needed for mainnet:**
+1. **Real proof verification** — swap the mock for the UltraHonk Soroban
+   verifier (`indextree/ultrahonk_soroban_contract`) and pin a verification
+   key. Reference implementations exist; this is integration, not research.
+2. **Poseidon2 domain alignment** — the hash in Noir and the
+   `poseidon2_permutation` host function on Soroban must be parameter-identical
+   or the roots won't match. A focused task.
+3. **Root-sync relayer** — a small service watching Midnight and calling
+   `post_root`. MVP is a single labeled relayer; the hardening path
+   (multi-relayer majority, then a light client once Midnight's interop phase
+   ships) is in the roadmap.
+4. **Issuer + holder tooling** — a CLI issuer and a holder-side prover
+   (`@corridor/verify`), then the operator/holder UIs.
+5. **One pilot corridor** — a small anchor or an NGO disbursement program on
+   testnet with real test users, auditor mode enabled.
 
-1. **Issuer infrastructure.** A real KYC provider or bank must issue
-   credentials onto Midnight. This is an integration partnership, not a
-   protocol problem — the circuit already handles credential verification.
+**Honest assessment.** Corridor is a working two-network architecture with the
+on-chain pieces built and one clearly-labeled federated component (the
+relayer) on a documented path to removal. It is not a finished
+trust-minimised bridge and is not pitched as one. The remaining work is
+integration, tooling, and partnerships — not protocol invention.
 
-2. **Relayer for Stellar settlement.** The component that carries a Midnight
-   proof into a Soroban attestation is, at this stage, a small, auditable,
-   federated component — a labeled trust assumption, not a solved
-   cryptographic bridge. Auditing and potentially decentralizing this is
-   Level 5–6 scope.
+## Funding path
 
-3. **Multi-credential support.** The current circuit handles one claim type
-   (`entitlement > 0`). A production version would support tiered credentials,
-   expiration, and revocation — all expressible in Compact without changing
-   the privacy model.
-
-4. **Lace wallet maturity.** The DApp Connector API is stable but still
-   evolving. Mainnet readiness depends on the wallet supporting production
-   key management and transaction signing.
-
-**Honest assessment:** Corridor is not a finished trust-minimized bridge, and
-should not be presented as one. It is a working proof of concept that
-demonstrates Midnight's confidential-logic layer solving a real problem
-(portable KYC) that transparent chains handle poorly. The mainnet path is
-clear — the hard work is partnerships and auditing, not protocol changes.
+- **Now:** [Stellar Drips Wave](./DRIPS.md) — the roadmap is decomposed into
+  scoped issues; contributors earn from the SDF-funded pool.
+- **Next:** SCF Build Award (Open or Integration track) once there is a pilot
+  corridor and the `@corridor/verify` SDK, leading with the validated need
+  (anchors don't want KYC-data liability) and the auditor-mode compliance
+  story.

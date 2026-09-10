@@ -1,0 +1,20 @@
+[package]
+name = "corridor-attestation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Corridor attestation — verifies an eligibility proof, burns the nullifier, records the pass"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+corridor-types = { path = "../../crates/corridor_types" }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+corridor-registry = { path = "../corridor_registry" }
+verifier-mock = { path = "../verifier_mock" }

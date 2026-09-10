@@ -18,6 +18,16 @@ build/
 # Contract artifacts
 contracts/managed/
 
+# Rust / Soroban
+target/
+**/target/
+
+# Noir / Barretenberg
+circuits/**/target/
+*.gz
+
+# Cargo — keep stellar/Cargo.lock committed (bins), ignore stray lockfiles elsewhere
+
 # Deployment info
 deployment.json
 

@@ -1,0 +1,18 @@
+[package]
+name = "corridor-registry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Corridor policy registry — per-corridor KYC policy and synced Midnight roots"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+corridor-types = { path = "../../crates/corridor_types" }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

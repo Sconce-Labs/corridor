@@ -26,8 +26,9 @@ flow; items marked _(M#)_ aren't built yet — see [`../ROADMAP.md`](../ROADMAP.
 4. **Submit.** The proof goes to Stellar through a fee-sponsoring tx-relayer, so
    your own Stellar account is never linked to the pass. _(M6)_
 5. **Done.** The corridor records a pass and releases your payment. On-chain,
-   anyone can see "a pass was granted, tag `tier-2-remit`" — never that it was
-   you.
+   anyone can see "a pass was granted, tag `remittance`" — never that it was
+   you. (The tag is a corridor category label the app picks; it is **not** a
+   verified attribute.)
 
 **What's proved vs. private**
 
@@ -78,15 +79,16 @@ verifier address + VK hash.
 your Grumpkin signing key, and a Midnight control secret.
 
 1. Run your KYC process off-chain, once, as you do today.
-2. The holder's tooling sends you `holder_binding` (not `holder_secret`) plus
-   the attributes you verified. Sign with the SDK:
+2. The holder's tooling sends you a **`CredentialRequest`** — the blinded
+   `holderBinding = Poseidon2(holderSecret, salt)` plus the attributes you
+   verified. **You never receive `holderSecret`.** Sign with the SDK:
    ```
-   issueCredential(issuerPrivateKey, { holderSecret, tier, expiry, credEpoch, salt })
-   // → { tier, expiry, credEpoch, salt, issuer: { pubkeyX, pubkeyY, sLo, sHi, eLo, eHi } }
+   issueCredential(issuerPrivateKey, request)
+   // request   = { holderBinding, tier, expiry, credEpoch }
+   // → statement = { tier, expiry, credEpoch, issuer: { pubkeyX, pubkeyY, sLo, sHi, eLo, eHi } }
    ```
-   (in the CLI _(M5)_ the holder supplies `holderSecret`/`salt`; you only see
-   `holder_binding`). Use a **short `expiry`** — days, not years.
-3. Hand the signed statement back to the holder.
+   Use a **short `expiry`** — days, not years.
+3. Hand the signed statement back to the holder (they run `assembleCredential`).
 4. **To bulk-revoke** everything you signed under an old epoch: bump your epoch
    on `corridor.compact` (`bumpEpoch(issuerCtl, issuerId, newEpoch)`), then tell
    your corridors. Individual revocation = just stop re-signing that holder.

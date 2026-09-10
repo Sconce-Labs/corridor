@@ -12,8 +12,12 @@ Not an external security audit._
 > **Round 2 (2026-09-10, later still):** a fresh line-by-line audit of the
 > *shipped Option B code* — [jump to it](#round-2--audit-of-the-option-b-implementation).
 > 1 critical (mock verifier), 2 high (unconstrained disclosed tag; issuer sees
-> `holder_secret`), 8 medium. A focused near-term fix batch is scoped at the
-> end.
+> `holder_secret`), 8 medium.
+>
+> **Fix batch shipped (2026-09-10):** R2-H1, R2-H2, R2-M6, R2-M7, R2-L2 — done
+> across circuit + SDK + contracts + docs, no ABI-layout change. Remaining:
+> R2-C1 (M3, critical path), R2-M1/M2/M3/M4/M5/M8 and the low-severity batch are
+> milestone work — see the status table at the end.
 
 ## Verdict
 
@@ -427,22 +431,22 @@ independently.
 
 ---
 
-## Round 2 — remediation plan
+## Round 2 — remediation status
 
-| # | Action | Effort | When |
-|---|--------|--------|------|
-| R2-C1 | Real UltraHonk verifier | **L** | M3 — the critical path |
-| R2-H2 | `issueCredential` takes `holderBinding`, not `holderSecret` | S | **now** — small SDK change + doc + example |
-| R2-H1 | Strip tier values from the tag enum (or bind a `disclosed_tier`) | S | **now** — circuit + SDK + a test |
-| R2-M6 | Pin arity-4 / arity-5 Poseidon2 vectors in circuit + SDK; fix docs | S | **now** |
-| R2-M7 | `PublicInputs::decode` rejects non-canonical words; fix `ABI.md` | S | **now** |
-| R2-L2 | `buildWitness` calls `assertStrongSecret` | XS | **now** |
-| R2-M2 | `get_policy` / `enter` extend the `Policy` TTL | S | next contracts PR |
-| R2-M1 | SDK helper: diff Midnight `issuerEpoch` vs Stellar floors + warn | M | M5 (issuer tooling) |
-| R2-M5 | In-circuit ECIES to `auditor_pubkey` (real auditor opening) | L | M7 |
-| R2-M3 / R2-M4 / R2-M8 | verifier-swap delay · canonical-VK registry · global pause | M | M3–M5 window, with the real verifier |
-| R2-L1, L5–L16 | hardening batch | S–M | opportunistic |
+| # | Action | Status |
+|---|--------|--------|
+| R2-H2 | `issueCredential` takes `holderBinding`, not `holderSecret` | ✅ **done** — `prepareCredentialRequest` → `issueCredential` → `assembleCredential`; the issuer sees only the binding. New `CredentialRequest` / `SignedStatement` types. |
+| R2-H1 | Tag enum carried tier values with nothing binding them | ✅ **done** — `TIER_*_PASS` removed from `tags.nr` + `DisclosureTag`; tags are corridor category labels with no attestation, documented as such in `ABI.md` / `CIRCUIT.md`. |
+| R2-M6 | Poseidon2 conformance only pinned arity-2 | ✅ **done** — arity-4 (statement) + arity-5 (auditor blob) now pinned explicitly in `conformance.nr`, `poseidon.test.ts`, and `poseidon_conformance`; `ABI.md` corrected. |
+| R2-M7 | `decode` accepted non-canonical numeric words | ✅ **done** — `word_to_u32`/`u64` return `Result` and error on non-zero high bytes → `BadPublicInputs`; `ABI.md` corrected; +3 tests. Defence in depth (circuit already range-constrains). |
+| R2-L2 | `assertStrongSecret` never called | ✅ **done** — `buildWitness` enforces it on `cred.holderSecret`. |
+| R2-C1 | Real UltraHonk verifier | ⏳ **M3** — the critical path |
+| R2-M2 | `get_policy` / `enter` extend the `Policy` TTL | ⏳ next contracts PR |
+| R2-M1 | SDK helper: diff Midnight `issuerEpoch` vs Stellar floors + warn | ⏳ M5 (issuer tooling) |
+| R2-M5 | In-circuit ECIES to `auditor_pubkey` (real auditor opening) | ⏳ M7 |
+| R2-M3 / R2-M4 / R2-M8 | verifier-swap delay · canonical-VK registry · global pause | ⏳ M3–M5 window, with the real verifier |
+| R2-L1, L4–L16 | hardening batch | ⏳ opportunistic (L4 typecheck-scope done in the SDK) |
 
-The **near-term batch** (R2-H1, R2-H2, R2-M6, R2-M7, R2-L2) is a single focused
-pass across circuit + SDK + contracts + docs — no redesign, no redeploy of a
-different ABI (R2-M7 is additive validation). Everything else is milestone work.
+The **near-term batch** (R2-H1, R2-H2, R2-M6, R2-M7, R2-L2) **shipped
+2026-09-10** — one pass across circuit + SDK + contracts + docs, no ABI-layout
+change. Everything else is milestone work.

@@ -64,7 +64,7 @@ were values in different fields).
 |---|---|
 | **A Stellar observer** | a pass was granted on corridor C, a tag, an aggregate counter, a burned nullifier — via a fee-sponsoring relayer, so *not* the holder's account |
 | **A Midnight observer** | the set of licensed issuers and each issuer's current credential epoch — nothing per-credential, nothing per-holder |
-| **A warranted auditor** | only `{tier, issuer}` for the specific passes in their warrant, by re-deriving the auditor blob |
+| **A warranted auditor** (target — M7) | only `{tier, issuer}` for the specific passes in their warrant. *Today the auditor blob is a commitment with no opening path — this capability is not yet functional (audit R2-M5).* |
 | **Nobody, on either chain** | the holder's identity, documents, tier, expiry, the issuer↔holder link, or their activity across corridors |
 
 ---

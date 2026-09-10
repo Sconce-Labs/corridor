@@ -375,8 +375,8 @@ const OBSERVERS = [
     sees: "The holder's identity, documents, tier, expiry, the issuer↔holder link, or the holder's activity across corridors.",
   },
   {
-    who: "A warranted auditor",
-    sees: "Only {tier, issuer} for the specific passes named in their warrant, by re-deriving the auditor blob. No global unmasking.",
+    who: "A warranted auditor (planned — M7)",
+    sees: "Only {tier, issuer} for the specific passes named in their warrant. The auditor blob is a commitment today; decryption to the auditor key is milestone M7.",
   },
 ];
 

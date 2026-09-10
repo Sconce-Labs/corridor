@@ -157,7 +157,8 @@ Holder opens the corridor operator's app, picks corridor C.
    corridor_attestation.is_cleared(corridor_id, nullifier) → true, releases funds.
 ```
 
-What a Stellar observer sees: corridor C granted a pass tagged `"tier-2-remit"`;
+What a Stellar observer sees: corridor C granted a pass tagged `"remittance"`
+(an app-chosen category label — **not** a verified attribute; see §4);
 `passes` went up by 1; a random-looking nullifier was burned. **Not** the
 holder's Stellar address (submitted via the tx-relayer, §6), tier, issuer, or
 identity.
@@ -175,6 +176,10 @@ Two mechanisms, no accumulator:
    `cred_epoch >= min_cred_epoch` and `enter()` binds the public value to the
    policy. This invalidates every statement signed under an older epoch.
 
+   > **Propagation is manual.** Nothing links the Midnight `issuerEpoch` to a
+   > corridor's Stellar `min_cred_epoch` — the operator has to watch and act. A
+   > helper that diffs the two and warns is M5 work (audit R2-M1).
+
 Targeted single-credential revocation (a small on-Stellar IMT) is designed in
 `docs/CREDENTIAL_ACCUMULATOR.md` but deferred — short expiry covers the pilot.
 
@@ -186,14 +191,14 @@ Already-granted passes are not retroactively revoked; operators re-check
 At proof time the holder binds `auditor_blob = Poseidon2([auditor_pubkey, tier,
 issuer_id, nullifier, auditor_nonce])` and passes it as a public input (stored
 in the `PassRecord`). `auditor_pubkey` is a **policy field** the contract binds —
-the holder cannot substitute their own. A regulator holding the auditor secret
-can recover `{tier, issuer_id}` for exactly the records they have a warrant for
-(by re-deriving the blob over the candidate values). No global unmasking, no
-issuer involvement.
+the holder cannot substitute their own.
 
-> The current `auditor_blob` is a binding commitment, not an encryption. A
-> production build would use a proper encryption-to-`auditor_pubkey` here; the
-> commitment already prevents holder-chosen or cross-record forgery.
+> **The auditor capability is not yet functional (audit R2-M5).** `auditor_nonce`
+> is a private witness the holder chooses and never shares, so the blob is a
+> pure hiding commitment with **no opening path** — a warranted regulator
+> cannot recover `{tier, issuer_id}`. Making this real means replacing the
+> commitment with in-circuit **ECIES to `auditor_pubkey`**, which is **M7**. The
+> commitment shipped now only prevents holder-chosen or cross-record forgery.
 
 ---
 
@@ -216,7 +221,9 @@ issuer_id, min_cred_epoch, auditor_pubkey, auditor_blob`
 6. `expiry > now`
 7. `cred_epoch >= min_cred_epoch`
 8. `nullifier == Poseidon2([holder_secret, corridor_id])`
-9. `disclosed_tag < MAX_TAG`
+9. `disclosed_tag < MAX_TAG` — **range only.** The tag is a holder/app-chosen
+   corridor category label; nothing binds it to the credential or the tier, so
+   `PassRecord.tag` is not a verified attribute (audit R2-H1).
 10. `auditor_blob == Poseidon2([auditor_pubkey, tier, issuer_id, nullifier, auditor_nonce])`
 
 `issuer_id ∈ accepted_issuers` is checked **on Soroban** against the policy (a
@@ -305,8 +312,10 @@ expiry, issuer-holder linkage, or cross-corridor linkage (nullifiers are
 per-corridor: `Poseidon2([holder_secret, corridor_id])`, unlinkable across
 corridors).
 
-**The auditor sees:** only `{tier, issuer_id}` for the specific nullifiers they
-hold a warrant for, by re-deriving `auditor_blob`.
+**The auditor (target design, M7):** only `{tier, issuer_id}` for the specific
+nullifiers they hold a warrant for, by decrypting `auditor_blob`. **Today** the
+blob is a commitment with no opening path — the auditor learns nothing until
+M7 wires in-circuit ECIES (see §3.5, audit R2-M5).
 
 ---
 

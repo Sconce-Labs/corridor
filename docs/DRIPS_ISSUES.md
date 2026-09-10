@@ -3,13 +3,18 @@
 The backlog is now **live as GitHub issues**, one per repo, labelled `drips` +
 `milestone: M*` + `complexity: *` + `area: *`.
 
-| Repo | Open issues | Themes |
-|------|-------------|--------|
-| [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts/issues) | 7 | UltraHonk verifier (M3), gas benchmarks, `#[contractevent]`, payout-push, nullifier archival, fuzz the decoder |
-| [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits/issues) | 3 | `bb prove`/`verify` in CI, indexed-Merkle revocation, in-circuit ECIES |
-| [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk/issues) | 3 | local prover service, relayer-submit `enter`, issuer CLI |
-| [corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer/issues) | 2 | Midnight indexer reader (M5), multi-relayer quorum |
-| [corridor](https://github.com/Sconce-Labs/corridor/issues) | 6 | Compact simulator tests + Preprod (M4), retire `counter`, holder app, operator console, threat model |
+> **Option B (2026-09-10) changed the backlog.** Issues about the credential
+> accumulator, Merkle fixtures, indexed-tree revocation, the root-sync relayer
+> and the `corridor-relayer` repo are **void**. New/changed themes below.
+
+| Repo | Themes (post Option B) |
+|------|-----------------------|
+| [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts/issues) | UltraHonk verifier (M3), **testnet redeploy for the Option B ABI (M2)**, gas benchmarks, payout-push, nullifier archival, fuzz the decoder |
+| [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits/issues) | pin `bb` in CI, targeted-revocation IMT (deferred), circuit review, in-circuit ECIES for the auditor blob (M7) |
+| [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk/issues) | local prover service, tx-relayer-submit `enter`, issuer CLI (KYC → sign, CSPRNG enforcement) |
+| tx-relayer (new, M6) | build the fee-sponsoring `enter` relayer — see `docs/TX_RELAYER.md` |
+| [corridor](https://github.com/Sconce-Labs/corridor/issues) | `corridor.compact` simulator tests + Preprod (M4), trim `midnight/` tooling, holder app, operator console, threat model |
+| ~~corridor-relayer~~ | archived — fold any live issues into the tx-relayer |
 
 Pick anything labelled `good first issue` to start. Complexity → Drips points:
 `low` ≈ 100, `medium` ≈ 150, `high` ≈ 200.

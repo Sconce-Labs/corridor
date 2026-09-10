@@ -1,6 +1,9 @@
-# Corridor — Architecture (Hybrid: Midnight + Stellar)
+# Corridor — Architecture (Stellar-native; issuer-signed statements)
 
-_Last updated: 2026-09-10. Supersedes the single-chain design in earlier commits._
+_Last updated: 2026-09-10. Supersedes the shared-Merkle-root "hybrid" design in
+earlier commits — see [`docs/CREDENTIAL_ACCUMULATOR.md`](./docs/CREDENTIAL_ACCUMULATOR.md)
+for why it was dropped (BLS12-381 vs BN254 field mismatch, non-functional
+revocation)._
 
 Corridor is a **portable proof of eligibility** for cross-border payment
 corridors. A holder proves once — to a regulated issuer — that they are KYC/AML
@@ -8,70 +11,70 @@ cleared, then reuses a zero-knowledge proof of that fact across any number of
 payment providers ("corridors") **without re-uploading documents and without
 revealing their identity**.
 
-> **This document describes the target design.** Two load-bearing assumptions
-> in it are currently unresolved — see [`AUDIT.md`](./AUDIT.md) and
-> [`docs/CREDENTIAL_ACCUMULATOR.md`](./docs/CREDENTIAL_ACCUMULATOR.md): (1) the
-> Midnight↔Stellar shared-Merkle-root bridge cannot work as written (BLS12-381
-> vs BN254), and (2) on-chain ZK verification is mocked pending M3. The
-> recommended fix (issuer-signed statements) simplifies §2–§6 considerably.
+> **Status of this document:** it describes the **Option B** design, which is
+> implemented across the circuit, SDK and Soroban contracts (25 + 18 + 23 tests
+> green). Still mocked: on-chain ZK verification (M3). Still unbuilt: the
+> fee-sponsoring tx-relayer (M6) and a frontend (M6). The testnet deployment
+> predates Option B and needs a redeploy (M2).
 
-The system spans **two networks by design**, each doing the job it is best at:
+The design is **Stellar-native**. The only cross-network dependency is a plain
+public **issuer directory** on Midnight — no shared roots, no state sync, no
+relayer between the chains.
 
-| Layer | Network | Role |
-|-------|---------|------|
-| **Credential custody & issuance** | **Midnight** (Compact) | A regulated issuer writes a credential the holder privately owns. Confidential persistent state — attribute values live in the holder's Midnight private state, never on any transparent ledger. |
-| **Eligibility proof** | **Noir → UltraHonk** (client-side) | The holder generates a succinct proof that they hold a valid, unexpired, unrevoked credential of sufficient tier for a specific corridor, plus a per-corridor nullifier. |
-| **Policy, verification, attestation, settlement** | **Stellar / Soroban** (Rust) | Corridor operators register policy. The proof is verified on-chain via Protocol 25 primitives (real verifier = M3; a mock stands in today). A pass is attested, the nullifier is burned, and payment can be gated on the result. |
-
-Neither network is asked to do the other's job. Midnight is not good at being a
-payments rail; Stellar's base layer is not good at holding confidential
-credential state. Corridor puts each where it belongs and bridges them with a
-portable proof.
+| Layer | Where | Role |
+|-------|-------|------|
+| **KYC & credential issuance** | Issuer (off-chain) + optionally Midnight | The issuer runs KYC once, then **signs** a short-lived statement about the holder with a Grumpkin key. Nothing per-credential is stored on any chain. |
+| **Eligibility proof** | **Noir → UltraHonk** (client-side) | The holder proves knowledge of a valid issuer signature over a statement meeting the corridor's policy, plus a per-corridor nullifier — revealing nothing else. |
+| **Policy, verification, attestation, settlement** | **Stellar / Soroban** (Rust) | Corridor operators register policy. The proof is verified on-chain via Protocol 25 primitives (real verifier = M3; a mock stands in today). A pass is attested, the nullifier is burned, and payment is gated on the result. |
+| **Issuer transparency** | **Midnight** (Compact) | A public registry: the licensed issuers and each issuer's current credential epoch (the bulk-revocation dial). No holder data. |
 
 ---
 
 ## 1. Actors
 
 - **Issuer** — a bank, licensed KYC provider, or NGO. Runs KYC once off-chain,
-  then issues a credential on Midnight. Never becomes a data custodian for
-  downstream corridors.
-- **Holder** — the migrant worker / aid recipient / remittance sender. Owns one
-  credential, presents many proofs.
+  then signs credential statements with a Grumpkin key. Never becomes a data
+  custodian for downstream corridors.
+- **Holder** — the migrant worker / aid recipient / remittance sender. Holds one
+  signed statement, presents many proofs.
 - **Corridor operator** — a remittance anchor, lending pool, or aid-disbursement
   program on Stellar. Registers a policy, consumes proofs, gates payouts.
 - **Auditor** — a regulator with a warrant. Can, for a *specific* flagged pass,
   learn the disclosed attributes — and nothing about anyone else.
-- **Relayer** (trust-minimized, see §6) — syncs Midnight credential/revocation
-  roots to the Stellar registry.
+- **Tx-relayer** (M6, see §6) — submits `enter` transactions on the holder's
+  behalf so the holder's Stellar account is never linked to a pass. This is the
+  *only* "relayer" in the design; the old root-sync relayer is gone.
 
 ---
 
 ## 2. Data model
 
-### On Midnight (public ledger)
+### The credential — an issuer signature, held by the holder
+
+The issuer, after KYC, computes
+
+```
+holder_binding  = Poseidon2([holder_secret, salt])           // issuer never sees holder_secret
+statement       = Poseidon2([holder_binding, tier, expiry, cred_epoch])
+(s, e)          = Schnorr_sign(issuer_grumpkin_sk, statement) // noir-lang/schnorr v0.4.0
+```
+
+and hands the holder `{ tier, expiry, cred_epoch, salt, issuer_pubkey, (s, e) }`.
+The holder keeps `holder_secret` (CSPRNG, 32 bytes) private and never shares it —
+it is load-bearing for both hiding and cross-corridor unlinkability.
+
+Nothing here is written to a chain. "Portable" means *re-present the signed
+statement*, not *prove tree membership*.
+
+### On Midnight (`corridor.compact`, public ledger)
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `issuerRegistry` | map(issuerId → IssuerMeta) | Allowlisted issuers, their verifying keys, status |
-| `credentialRoot` | Field (Merkle root) | Accumulator of all issued credential **commitments** |
-| `revocationRoot` | Field (Merkle root) | Accumulator of revoked credential commitments |
-| `epoch` | Uint | Monotonic counter bumped on every root update |
-
-### On Midnight (holder private state — never on-chain)
-
-| Field | Meaning |
-|-------|---------|
-| `holderSecret` | 32-byte secret, the root of the holder's identity in Corridor |
-| `tier` | KYC tier (1–4) |
-| `expiry` | Unix timestamp the credential lapses |
-| `issuerId` | Which issuer signed it |
-| `salt` | Per-credential randomness |
-| `merklePath` | Inclusion path for the commitment under `credentialRoot` |
-
-The credential **commitment** is
-`C = Poseidon2(holderSecret, tier, expiry, issuerId, salt)`.
-Only `C` is ever public. Given `C`, an observer learns nothing about the holder
-or the attributes.
+| `admin` | `Bytes<32>` | governance key hash |
+| `issuers` | `Set<Bytes<32>>` | registered issuer ids; `issuer_id = Poseidon2(pk.x, pk.y)` |
+| `issuerAuth` | `Map<Bytes<32>, Bytes<32>>` | issuer id → hash of the issuer's Midnight control secret |
+| `issuerEpoch` | `Map<Bytes<32>, Uint<64>>` | issuer id → current credential epoch (monotonic, starts at 1) |
+| `attested` | `Counter` | total statements issuers report signing (transparency only) |
 
 ### On Stellar (Soroban storage)
 
@@ -79,14 +82,17 @@ or the attributes.
 
 | Key | Value |
 |-----|-------|
-| `Policy(corridor_id)` | `CorridorPolicy { operator, accepted_issuers, min_tier, required_disclosures, credential_root, revocation_root, root_epoch, verifier, vk_hash, now_tolerance_secs, paused }` |
-| `Admin` | registry admin address |
+| `Policy(corridor_id)` | `CorridorPolicy { operator, accepted_issuers, min_tier, required_disclosures, min_cred_epoch, verifier, vk_hash, auditor_pubkey, now_tolerance_secs, paused }` |
+| `Admin` / `PendingAdmin` | registry admin (two-step transfer) |
+
+`accepted_issuers` holds `Poseidon2(pk.x, pk.y)` ids — the same ids the circuit
+binds and Midnight registers.
 
 `corridor_attestation`:
 
 | Key | Value |
 |-----|-------|
-| `Nullifier(corridor_id, nullifier)` | `PassRecord { tag, ledger, auditor_blob }` |
+| `Nullifier(corridor_id, nullifier)` | `PassRecord { tag, ledger, timestamp, auditor_blob }` |
 | `Passes(corridor_id)` | `u64` aggregate count |
 | `Registry` | address of `corridor_registry` |
 
@@ -94,55 +100,56 @@ or the attributes.
 
 ## 3. Flows
 
-### 3.1 Issuance (Midnight)
+### 3.1 Issuance (off-chain)
 
 ```
 Holder ──KYC docs──▶ Issuer  (off-chain, one time)
-Issuer:  commitment C = Poseidon2(holderSecret, tier, expiry, issuerId, salt)
-Issuer ──issueCredential(C, issuerSig)──▶ Midnight Corridor contract
-         └─ contract verifies issuerSig, appends C to credentialRoot, bumps epoch
-Holder stores {holderSecret, tier, expiry, issuerId, salt, merklePath} in Midnight private state
+Issuer:  holder_binding = Poseidon2([holder_secret, salt])       (holder supplies holder_binding, not holder_secret)
+         statement      = Poseidon2([holder_binding, tier, expiry, cred_epoch])
+         (s, e)         = Schnorr_sign(issuer_sk, statement)
+Issuer ──▶ Holder: { tier, expiry, cred_epoch, salt, issuer_pubkey, (s, e) }
 ```
 
-An on-chain observer sees: issuer X added *a* credential at epoch N. Not who, not
-what tier.
+No transaction. Optionally the issuer bumps `attested` on Midnight for public
+volume transparency.
 
-### 3.2 Root sync (bridge)
+### 3.2 Issuer registration (Midnight, one time per issuer)
 
 ```
-Relayer watches Midnight credentialRoot / revocationRoot / epoch
-Relayer ──postRoot(corridor_id or global, root, revocationRoot, epoch, midnightHeight)──▶ corridor_registry
-         └─ registry stores (root, revocationRoot, root_epoch) on the policy
+Admin ──registerIssuer(adminSk, issuer_id, ctlHash)──▶ corridor.compact
+Operator ──register(corridor_id, CorridorPolicy{ accepted_issuers: [issuer_id, ...], ... })──▶ corridor_registry (Stellar)
 ```
-
-MVP trust assumption: the relayer posts an honest root. See §6 for the
-hardening path.
 
 ### 3.3 Entering a corridor (the core flow)
 
 ```
-Holder opens corridor operator's app, picks corridor C, wants to send money.
+Holder opens the corridor operator's app, picks corridor C.
 
-1. App fetches Policy(C) from corridor_registry → { min_tier, credential_root,
-   revocation_root, root_epoch, accepted_issuers, verifier, now_tolerance }.
+1. App fetches Policy(C) from corridor_registry →
+   { accepted_issuers, min_tier, min_cred_epoch, auditor_pubkey, verifier,
+     vk_hash, now_tolerance_secs, paused }.
 
-2. Holder's wallet builds the Noir witness from private state:
-     private: holderSecret, tier, expiry, issuerId, salt, merklePath, nonRevPath
-     public:  credential_root, revocation_root, corridor_id, min_tier,
-              now, nullifier, disclosed_tag, [auditor_pubkey, auditor_blob]
+2. The SDK builds the Noir witness locally (buildWitness):
+     private: holder_secret, tier, expiry, cred_epoch, salt,
+              issuer_pk_x, issuer_pk_y, sig_s_lo/hi, sig_e_lo/hi, auditor_nonce
+     public:  corridor_id, min_tier, now, nullifier, disclosed_tag,
+              issuer_id, min_cred_epoch, auditor_pubkey, auditor_blob
+   buildWitness re-runs every circuit check first (verifyWitnessLocally) and
+   fails locally before proving if anything is wrong.
 
-3. Circuit proves (see §4). UltraHonk proof generated locally (bb / wallet prover).
+3. Circuit proves (§4). UltraHonk proof generated locally.
 
 4. App submits corridor_attestation.enter(corridor_id, proof, public_inputs):
      a. load Policy(corridor_id); assert not paused
-     b. assert public_inputs.credential_root == policy.credential_root
-        && public_inputs.revocation_root == policy.revocation_root
-        && public_inputs.corridor_id == corridor_id
-        && public_inputs.min_tier == policy.min_tier
-        && |ledger.timestamp - public_inputs.now| <= policy.now_tolerance_secs
-     c. verifier.verify(policy.vk_hash, proof, public_inputs)   ← Protocol 25 BN254 pairing
+     b. assert pi.corridor_id     == corridor_id
+        && pi.min_tier            == policy.min_tier
+        && pi.issuer_id           ∈  policy.accepted_issuers
+        && pi.min_cred_epoch      == policy.min_cred_epoch
+        && pi.auditor_pubkey      == policy.auditor_pubkey
+        && |ledger.timestamp - pi.now| <= policy.now_tolerance_secs
+     c. verifier.verify(policy.vk_hash, proof, public_inputs)   ← Protocol 25 BN254 pairing (M3)
      d. assert Nullifier(corridor_id, nullifier) not present
-     e. store Nullifier(corridor_id, nullifier) = PassRecord{ tag, ledger, auditor_blob }
+     e. store Nullifier(corridor_id, nullifier) = PassRecord{ tag, ledger, timestamp, auditor_blob }
      f. Passes(corridor_id) += 1
      g. emit PASS_GRANTED(corridor_id, tag, nullifier)
 
@@ -152,55 +159,74 @@ Holder opens corridor operator's app, picks corridor C, wants to send money.
 
 What a Stellar observer sees: corridor C granted a pass tagged `"tier-2-remit"`;
 `passes` went up by 1; a random-looking nullifier was burned. **Not** the
-holder's Stellar address (proof is presented by a relayer or via a
-meta-transaction; see §7), tier, issuer, or identity.
+holder's Stellar address (submitted via the tx-relayer, §6), tier, issuer, or
+identity.
 
 ### 3.4 Revocation
 
-Issuer appends the commitment to `revocationRoot` on Midnight → relayer syncs →
-future proofs against the new `revocation_root` fail the non-membership check.
-Already-granted passes are not retroactively revoked (operators can re-check
-`is_cleared` against a fresh epoch if they want continuous assurance).
+Two mechanisms, no accumulator:
+
+1. **Short expiry (primary).** `expiry` is days, not years. The issuer simply
+   stops re-signing a revoked holder. The circuit enforces `expiry > now`.
+2. **Epoch floor (bulk).** The issuer publishes a higher `cred_epoch` — on
+   Midnight via `corridor.compact.bumpEpoch`, and operators raise their policy's
+   `min_cred_epoch` on Stellar via `corridor_registry.set_min_cred_epoch`
+   (monotonic; regressions rejected). The circuit enforces
+   `cred_epoch >= min_cred_epoch` and `enter()` binds the public value to the
+   policy. This invalidates every statement signed under an older epoch.
+
+Targeted single-credential revocation (a small on-Stellar IMT) is designed in
+`docs/CREDENTIAL_ACCUMULATOR.md` but deferred — short expiry covers the pilot.
+
+Already-granted passes are not retroactively revoked; operators re-check
+`is_cleared` for continuous assurance.
 
 ### 3.5 Audit
 
-At proof time the holder encrypts `{tier, issuerId, disclosed attributes}` to the
-policy's `auditor_pubkey`, bound to the nullifier, and passes the ciphertext as
-`auditor_blob` (a public input, stored in the `PassRecord`). A regulator holding
-the auditor secret can decrypt exactly the records they have a warrant for. No
-global unmasking, no issuer involvement.
+At proof time the holder binds `auditor_blob = Poseidon2([auditor_pubkey, tier,
+issuer_id, nullifier, auditor_nonce])` and passes it as a public input (stored
+in the `PassRecord`). `auditor_pubkey` is a **policy field** the contract binds —
+the holder cannot substitute their own. A regulator holding the auditor secret
+can recover `{tier, issuer_id}` for exactly the records they have a warrant for
+(by re-deriving the blob over the candidate values). No global unmasking, no
+issuer involvement.
+
+> The current `auditor_blob` is a binding commitment, not an encryption. A
+> production build would use a proper encryption-to-`auditor_pubkey` here; the
+> commitment already prevents holder-chosen or cross-record forgery.
 
 ---
 
 ## 4. The Noir circuit (repo: [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits))
 
-**Private inputs:** `holder_secret, tier, expiry, issuer_id, salt,
-merkle_path[DEPTH], merkle_index, non_rev_path[DEPTH], non_rev_index,
-auditor_plaintext, auditor_nonce`
+**Private inputs:** `holder_secret, tier, expiry, cred_epoch, salt,
+issuer_pk_x, issuer_pk_y, sig_s_lo, sig_s_hi, sig_e_lo, sig_e_hi, auditor_nonce`
 
-**Public inputs:** `credential_root, revocation_root, corridor_id, min_tier,
-now, nullifier, disclosed_tag, auditor_pubkey, auditor_blob`
+**Public inputs (9):** `corridor_id, min_tier, now, nullifier, disclosed_tag,
+issuer_id, min_cred_epoch, auditor_pubkey, auditor_blob`
 
-**Constraints:**
+**Constraints** (`eligibility::check`):
 
-1. `commitment = poseidon2([holder_secret, tier, expiry, issuer_id, salt])`
-2. `merkle_root(commitment, merkle_path, merkle_index) == credential_root`
-3. `merkle_non_membership(commitment, non_rev_path, non_rev_index, revocation_root)`
-   — prove the commitment's slot in the revocation tree is empty
-4. `tier as u32 >= min_tier as u32`
-5. `expiry as u64 > now as u64`
-6. `nullifier == poseidon2([holder_secret, corridor_id])`
-7. `auditor_blob == enc(auditor_pubkey, auditor_plaintext, auditor_nonce)` and
-   `auditor_plaintext` binds `tier`, `issuer_id`, `nullifier`
-8. `disclosed_tag` is range-checked (a small enum index, not free text)
+1. `holder_binding   = Poseidon2([holder_secret, salt])`
+2. `statement        = Poseidon2([holder_binding, tier, expiry, cred_epoch])`
+3. `schnorr::verify_signature(pk, (s, e), statement)` — Grumpkin, Poseidon2
+   challenge, `DST = poseidon2_hash_bytes("schnorr_grumpkin_poseidon2")`
+4. `Poseidon2([issuer_pk_x, issuer_pk_y]) == issuer_id`
+5. `tier >= min_tier`
+6. `expiry > now`
+7. `cred_epoch >= min_cred_epoch`
+8. `nullifier == Poseidon2([holder_secret, corridor_id])`
+9. `disclosed_tag < MAX_TAG`
+10. `auditor_blob == Poseidon2([auditor_pubkey, tier, issuer_id, nullifier, auditor_nonce])`
 
 `issuer_id ∈ accepted_issuers` is checked **on Soroban** against the policy (a
 short list), not in-circuit, to keep the circuit fixed-size across corridors.
 
-Proving system: **UltraHonk** (Noir default), verified by the
-`ultrahonk_verifier` Soroban contract (reference:
-`indextree/ultrahonk_soroban_contract`). The verification key is fixed at
-verifier deploy time; `vk_hash` on the policy pins which VK a corridor trusts.
+Grumpkin is Barretenberg's embedded curve for BN254, so the signature check is
+native — no non-native field arithmetic. Cost: **73 ACIR opcodes** (the
+Merkle-inclusion design was ~3200). Proving system: **UltraHonk**, verified by
+the `ultrahonk_verifier` Soroban contract (M3); `vk_hash` on the policy pins
+which VK a corridor trusts.
 
 ---
 
@@ -211,8 +237,9 @@ corridor-contracts/
 ├── Cargo.toml                         workspace, soroban-sdk 25.3
 ├── ABI.md                             source of truth for the PI_* public-input layout
 ├── crates/corridor_types/             shared types: CorridorPolicy, PassRecord, PublicInputs, errors
-├── contracts/corridor_registry/       corridor policy CRUD + root sync + admin
-├── contracts/corridor_attestation/    enter(), is_cleared(), nullifier ledger, events, payment hook
+├── contracts/corridor_registry/       policy CRUD + set_min_cred_epoch + two-step admin
+├── contracts/corridor_attestation/    enter(), is_cleared(), nullifier ledger, events
+├── contracts/ultrahonk_verifier/      real verifier skeleton (M3)
 └── contracts/verifier_mock/           implements the Verifier interface for tests + staged rollout
 ```
 
@@ -221,6 +248,11 @@ corridor-contracts/
 `verifier_mock` returns a configurable answer; the real UltraHonk verifier is a
 drop-in with the same signature. `corridor_attestation` never hard-codes a
 verifier — it calls whatever address the policy names.
+
+**`corridor_registry` surface:** `__constructor`, `admin`, `propose_admin` /
+`accept_admin`, `register`, `get_policy`, `update_policy` (preserves the
+operator), `set_paused`, `set_min_cred_epoch` (operator-gated, monotonic).
+No `post_root`, no relayer allowlist.
 
 **Payment gating** — two integration modes for corridor operators:
 
@@ -236,35 +268,36 @@ verifier — it calls whatever address the policy names.
 
 | Assumption | Risk | Hardening path |
 |-----------|------|----------------|
-| Relayer posts an honest Midnight root | A bad root could admit invalid credentials or censor valid ones | (1) multiple independent relayers + registry takes the majority root per epoch; (2) fraud-proof window; (3) Midnight→Stellar light client once the Hua interop phase ships |
-| `now` in proof vs ledger time | Small clock skew | `now_tolerance_secs` window on the policy (default 300s) |
-| Issuer key security | Compromise mints bad credentials | Per-issuer allowlist per corridor; issuer can rotate key + publish revocation root; corridor can drop an issuer instantly |
-| Auditor key custody | Key loss = no audit; key leak = warranted data exposed | Threshold key (t-of-n regulators); rotate per epoch |
+| Issuer key security | Compromise mints bad statements | Per-issuer allowlist per corridor; issuer rotates its key + bumps `cred_epoch` to bulk-revoke; corridor drops the issuer instantly; short expiry caps exposure |
+| Issuer honesty at KYC | A dishonest issuer signs for an ineligible holder | Same as any credential system — licence, audit trail (`attested`), corridor's choice of accepted issuers |
+| Tx-relayer availability | Can censor / delay `enter`, cannot forge | Multiple relayers; holder can always self-submit (losing account-unlinkability, not safety) |
+| `now` in proof vs ledger time | Small clock skew | `now_tolerance_secs` window on the policy (default 300s); a just-expired credential can pass within that window (documented, acceptable) |
+| Auditor key custody | Key loss = no audit; key leak = warranted data exposed | Threshold key (t-of-n regulators); rotate per epoch; `auditor_pubkey` is per-policy |
 | UltraHonk verifier correctness | Soundness bug = fake passes | Use the audited reference verifier; pin `vk_hash`; `paused` switch on every policy |
 
-Corridor is **not** a trustless bridge today and must not be pitched as one. It
-is a working two-network system with one clearly-labeled federated component
-(the relayer) on a documented path to removal.
+Corridor is **not** a trustless bridge and is not pitched as one. Under Option B
+there is no bridge to trust-minimize — the only federated element is the
+tx-relayer, which cannot forge a pass.
 
 ---
 
 ## 7. Privacy analysis
 
 **A Stellar observer sees:** a pass was granted on corridor C, a tag index, an
-aggregate counter incremented, a nullifier burned. If the holder submits the
-`enter` transaction from their own account, they link that account to the pass —
-so the reference flow submits via a **relayer / fee-sponsored meta-transaction**,
-and the SDK defaults to that.
+aggregate counter incremented, a nullifier burned. If the holder submits `enter`
+from their own account they link it — so the reference flow submits via a
+**fee-sponsoring tx-relayer** (M6) and the SDK defaults to that.
 
-**A Midnight observer sees:** issuer X issued *a* credential at epoch N; issuer X
-revoked *a* credential at epoch M. Never the holder, tier, or expiry.
+**A Midnight observer sees:** the set of licensed issuers and each issuer's
+current credential epoch. Nothing per-credential, nothing per-holder.
 
 **Nobody sees, on either chain:** the holder's identity, KYC documents, tier,
 expiry, issuer-holder linkage, or cross-corridor linkage (nullifiers are
-per-corridor: `Poseidon2(holderSecret, corridorId)`, unlinkable across corridors).
+per-corridor: `Poseidon2([holder_secret, corridor_id])`, unlinkable across
+corridors).
 
-**The auditor sees:** only the `{tier, issuerId, attributes}` for the specific
-nullifiers they hold a warrant for, by decrypting `auditor_blob`.
+**The auditor sees:** only `{tier, issuer_id}` for the specific nullifiers they
+hold a warrant for, by re-deriving `auditor_blob`.
 
 ---
 
@@ -275,13 +308,13 @@ Corridor is split across repos ([`COMPONENTS.md`](./COMPONENTS.md)):
 ```
 Sconce-Labs/corridor            ← hub: this file, README, PROPOSAL, ROADMAP,
 │                                  HANDOFF, DRIPS, docs/
-├── contracts/corridor.compact  ← Midnight credential registry
-└── src/                        ← React frontend (holder + operator UIs)
+├── contracts/corridor.compact  ← Midnight issuer registry
+└── midnight/                   ← Midnight wallet + deploy tooling (predates Option B)
 
 Sconce-Labs/corridor-contracts  ← Soroban workspace (Rust); owns ABI.md
 Sconce-Labs/corridor-circuits   ← Noir corridor_eligibility circuit
-Sconce-Labs/corridor-sdk        ← @corridor/verify TypeScript SDK
-Sconce-Labs/corridor-relayer    ← root-sync service (not yet created — M5)
+Sconce-Labs/corridor-sdk        ← @corridor/verify TypeScript SDK (incl. the Grumpkin signer)
+Sconce-Labs/corridor-relayer    ← ARCHIVED (Option B removed root sync)
 ```
 
 ---
@@ -290,10 +323,10 @@ Sconce-Labs/corridor-relayer    ← root-sync service (not yet created — M5)
 
 See [`ROADMAP.md`](./ROADMAP.md). Short version:
 
-1. **M1 — Soroban core** (registry + attestation + mock verifier + tests) ← in progress
-2. **M2 — Noir circuit** (eligibility proof, local proving, `Prover.toml` fixtures)
+1. **M1 — Soroban core** (registry + attestation + mock verifier + tests) ✅
+2. **M2 — Circuit + testnet redeploy** (Option B circuit ✅; redeploy contracts + refresh `deployments/testnet.json`)
 3. **M3 — Real verifier** (wire `ultrahonk_verifier`, end-to-end proof → verify on testnet)
-4. **M4 — Midnight upgrade** (`corridor.compact`: issuer registry + credential/revocation roots)
-5. **M5 — Relayer** (root sync, multi-relayer majority)
-6. **M6 — SDK + frontend** (`@corridor/verify`, meta-tx flow, operator + holder UIs)
+4. **M4 — Midnight** (`corridor.compact` issuer registry ✅ compiles; simulator tests + Preprod deploy)
+5. **M5 — Issuer SDK & tooling** (KYC → sign flow, CSPRNG enforcement, key management)
+6. **M6 — Tx-relayer + frontend** (`docs/TX_RELAYER.md`; holder + operator UIs)
 7. **M7 — Pilot** (one real corridor operator on testnet, auditor mode live)

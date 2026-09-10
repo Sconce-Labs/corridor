@@ -1,27 +1,29 @@
 # Using Corridor
 
 Three audiences: **holders** (prove eligibility), **corridor operators**
-(consume proofs), **issuers** (write credentials). This guide tracks the target
+(consume proofs), **issuers** (sign credentials). This guide tracks the target
 flow; items marked _(M#)_ aren't built yet — see [`../ROADMAP.md`](../ROADMAP.md).
 
 ---
 
 ## Holder — prove you're cleared to a corridor
 
-**You need:** a Midnight-capable wallet with your Corridor credential, a browser,
-and the corridor operator's app URL.
+**You need:** your Corridor credential (an issuer signature + your
+`holder_secret`), a browser, and the corridor operator's app URL.
 
 1. **Get a credential once.** An accredited issuer runs your KYC (off-chain,
-   once) and records a *commitment* on Midnight. Your wallet stores the secret
-   and attributes — they never leave your device. You never upload documents
-   again.
+   once) and hands you a signed statement:
+   `{ tier, expiry, cred_epoch, salt, issuer_pubkey, signature }`. You keep it,
+   plus a `holder_secret` your tooling generated with a CSPRNG. You never upload
+   documents again, and the issuer never learns your `holder_secret` — only
+   `holder_binding = Poseidon2(holder_secret, salt)`.
 2. **Open the corridor.** In the operator's app, choose the corridor and the
    payment you want to make.
 3. **Generate the proof.** The app reads the corridor's policy (minimum tier,
-   accepted issuers, current credential root) and your wallet builds a
-   zero-knowledge proof that your credential satisfies it. This runs locally —
-   a progress bar shows proving. _(M6)_
-4. **Submit.** The proof goes to Stellar through a fee-sponsored relayer, so
+   accepted issuers, `min_cred_epoch`, auditor key) and the SDK's `buildWitness`
+   assembles a witness — re-checking every constraint locally first. Proving
+   runs on your device. _(M6)_
+4. **Submit.** The proof goes to Stellar through a fee-sponsoring tx-relayer, so
    your own Stellar account is never linked to the pass. _(M6)_
 5. **Done.** The corridor records a pass and releases your payment. On-chain,
    anyone can see "a pass was granted, tag `tier-2-remit`" — never that it was
@@ -31,9 +33,9 @@ and the corridor operator's app URL.
 
 | Proved (corridor learns) | Private (nobody learns) |
 |--------------------------|-------------------------|
-| You hold a valid credential of tier ≥ the minimum | Your name, documents, exact tier |
-| It was issued by an accepted issuer | Which issuer, for you specifically |
-| It isn't expired or revoked | Your identity, wallet address |
+| You hold a valid issuer signature for tier ≥ the minimum | Your name, documents, exact tier |
+| It was signed by an accepted issuer | Which issuer, for you specifically |
+| It isn't expired and its epoch is ≥ the corridor's floor | Your identity, wallet address |
 | A one-time nullifier for *this* corridor | Your activity on other corridors |
 
 ---
@@ -48,12 +50,16 @@ verifier address + VK hash.
    ```
    corridor_registry.register(corridor_id, CorridorPolicy {
      operator, accepted_issuers, min_tier, required_disclosures,
-     verifier, vk_hash, now_tolerance_secs: 300, paused: false,
-     // root fields start empty — the relayer fills them
+     min_cred_epoch, verifier, vk_hash, auditor_pubkey,
+     now_tolerance_secs: 300, paused: false,
    })
    ```
-2. **Keep roots fresh.** Run the relayer _(M5)_ or call `post_root` yourself
-   whenever the Midnight epoch advances.
+   `accepted_issuers` holds `Poseidon2(pk.x, pk.y)` ids — the same ids the
+   Midnight registry lists.
+2. **Track revocation.** Watch each accepted issuer's epoch on
+   `corridor.compact` (`issuerEpoch`); when an issuer bumps it, raise your
+   policy's floor with `corridor_registry.set_min_cred_epoch(corridor_id, epoch)`
+   (monotonic — it rejects a lower value).
 3. **Gate your payout.** In your existing payout contract, before releasing
    funds:
    ```
@@ -65,18 +71,25 @@ verifier address + VK hash.
 
 ---
 
-## Issuer — write a credential
+## Issuer — sign a credential
 
-**You need:** to be registered by the Corridor admin (`registerIssuer`), your
-issuer secret, and a Midnight wallet.
+**You need:** to be registered by the Corridor admin (`registerIssuer` on
+`corridor.compact`, with the id `Poseidon2(pk.x, pk.y)` of your Grumpkin key),
+your Grumpkin signing key, and a Midnight control secret.
 
 1. Run your KYC process off-chain, once, as you do today.
-2. Compute the commitment:
-   `Poseidon2(holderSecret, tier, expiry, issuerId, salt)` — the holder's
-   wallet supplies `holderSecret` and `salt` (via the issuer CLI _(M6)_); you
-   never see raw identity data after this step.
-3. Call `issueCredential(issuerSk, commitment)` on `corridor.compact`.
-4. To revoke later: `revokeCredential(issuerSk, Poseidon2(commitment))`.
+2. The holder's tooling sends you `holder_binding` (not `holder_secret`) plus
+   the attributes you verified. Sign with the SDK:
+   ```
+   issueCredential(issuerPrivateKey, { holderSecret, tier, expiry, credEpoch, salt })
+   // → { tier, expiry, credEpoch, salt, issuer: { pubkeyX, pubkeyY, sLo, sHi, eLo, eHi } }
+   ```
+   (in the CLI _(M5)_ the holder supplies `holderSecret`/`salt`; you only see
+   `holder_binding`). Use a **short `expiry`** — days, not years.
+3. Hand the signed statement back to the holder.
+4. **To bulk-revoke** everything you signed under an old epoch: bump your epoch
+   on `corridor.compact` (`bumpEpoch(issuerCtl, issuerId, newEpoch)`), then tell
+   your corridors. Individual revocation = just stop re-signing that holder.
 
 You are **not** a data custodian for any downstream corridor. They see a proof,
 never a document.
@@ -88,9 +101,10 @@ never a document.
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `PolicyNotFound` | corridor not registered / wrong `corridor_id` | check the id with the operator |
-| `RootMismatch` | your proof used an old credential root | refresh — the relayer posted a new epoch; regenerate the proof |
+| `CredEpochMismatch` | proof's `min_cred_epoch` ≠ the policy's | regenerate the proof against the current policy |
 | `MinTierMismatch` | policy `min_tier` changed | regenerate the proof against the current policy |
 | `StaleProofTime` | proof `now` outside the tolerance window | regenerate; check your device clock |
 | `NullifierUsed` | this credential already passed this corridor | expected — one pass per credential per corridor |
 | `IssuerNotAccepted` | your issuer isn't on this corridor's allowlist | use a credential from an accepted issuer |
 | `ProofInvalid` | proof/verifier/VK mismatch, or a tampered proof | confirm the app is pointed at the right verifier + VK |
+| `bad issuer signature` (local, before proving) | wrong issuer key, tampered statement, or expired/low-epoch credential | `verifyWitnessLocally` names the failed check |

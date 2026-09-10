@@ -27,54 +27,48 @@ revealing their identity**.
 - **Regulators**, who get a warrant-scoped audit path instead of either total
   opacity or bulk data access.
 
-## Why two networks?
+## Architecture in one paragraph
 
-Corridor deliberately uses **Midnight for the credential** and **Stellar for
-the corridors**, because the two jobs have opposite requirements.
+Corridor is **Stellar-native**. A regulated issuer runs KYC once, then **signs**
+a short-lived statement about the holder (`{ holder_binding, tier, expiry,
+cred_epoch }`) with a **Grumpkin** key — Barretenberg's embedded curve for
+BN254. The holder keeps the signature. To enter a corridor, the holder generates
+a **Noir → UltraHonk** proof on their own device that they hold a valid issuer
+signature meeting that corridor's policy, and emits a per-corridor nullifier.
+Since **Protocol 25 ("X-Ray", Jan 2026)** Soroban verifies BN254/Poseidon2
+proofs natively and cheaply, so the policy, the proof check, the nullifier
+ledger and the payout gate all live on Stellar, next to the money.
 
-**The credential needs confidential, persistent, shared state.** An issuer
-writes something a specific holder privately owns and can later prove against,
-and that must not be visible to anyone else — not the other issuers, not the
-corridors, not chain analysts. Midnight's confidential-logic layer is built for
-exactly this: private witnesses never touch the ledger, and `disclose()` makes
-selective publication a first-class operation. A transparent chain would force
-the issuer to encrypt off-chain and manage key distribution.
+**Midnight** plays a small, optional part: a public **issuer registry**
+(`corridor.compact`) recording who the licensed issuers are and each issuer's
+current credential epoch. It holds no holder data and is not on any critical
+path — a corridor could run without it.
 
-**The corridor needs cheap, public, high-throughput settlement with native
-proof verification.** Stellar is a payments network first, and since **Protocol
-25 ("X-Ray", Jan 2026)** Soroban has native BN254 and Poseidon2 host functions
-— on-chain zero-knowledge proof verification at low cost. The corridor policy,
-the proof check, the nullifier ledger, and the payout gate all belong here,
-next to the money.
-
-**The bridge is a proof, not a message.** The holder generates a **Noir →
-UltraHonk** proof on their own device that binds a Midnight credential root to a
-Stellar corridor policy and emits a per-corridor nullifier. Stellar verifies it
-natively. No chain is asked to interpret the other's state; only a succinct
-proof crosses.
-
-Neither half is redundant. Stellar's ZK primitives verify a proof but do not
-give you a place to *hold* a confidential credential that an issuer writes and a
-holder owns. Midnight gives you that, but is not a payments rail. Corridor is
-the seam.
+> An earlier design had Midnight build a credential Merkle tree and a relayer
+> sync its root to Stellar. That could not work — the two chains use
+> incompatible fields (BLS12-381 vs BN254) — and revocation was a no-op. The
+> switch to issuer-signed statements ("Option B") is documented in
+> [`docs/CREDENTIAL_ACCUMULATOR.md`](./docs/CREDENTIAL_ACCUMULATOR.md) and
+> [`AUDIT.md`](./AUDIT.md).
 
 ## Data Model
 
 | Data Point | Type | Lives on | Disclosed to |
 |------------|------|----------|--------------|
-| Credential commitment `Poseidon2(secret, tier, expiry, issuer, salt)` | Public leaf | Midnight | Everyone (reveals nothing) |
-| Issuer id | Public | Midnight | Everyone (by design — accountability) |
-| Credential root / revocation root / epoch | Public | Midnight → synced to Stellar | Everyone |
-| Holder secret, tier, expiry, salt, Merkle paths | Private witness | Holder's device / Midnight private state | No one |
-| Corridor policy (min tier, accepted issuers, verifier, roots) | Public | Stellar | Everyone |
-| Eligibility proof + public inputs | Transient | Submitted to Stellar | Verifier only |
-| Nullifier `Poseidon2(secret, corridorId)` | Public | Stellar | Everyone (unlinkable across corridors) |
+| Issuer signature over `{ holder_binding, tier, expiry, cred_epoch }` | Private witness | Holder's device | No one (only proven in ZK) |
+| `holder_binding = Poseidon2(holder_secret, salt)` | Private witness | Holder's device (issuer sees it once, at signing) | No one on chain |
+| Issuer id `Poseidon2(pk.x, pk.y)` | Public | Midnight registry + Stellar policy | Everyone (by design — accountability) |
+| Issuer credential epoch | Public | Midnight → mirrored by operators to Stellar | Everyone |
+| Holder secret, tier, expiry, cred_epoch, salt | Private witness | Holder's device | No one |
+| Corridor policy (min tier, accepted issuers, verifier, `min_cred_epoch`, auditor key) | Public | Stellar | Everyone |
+| Eligibility proof + 9 public inputs | Transient | Submitted to Stellar | Verifier only |
+| Nullifier `Poseidon2(holder_secret, corridor_id)` | Public | Stellar | Everyone (unlinkable across corridors) |
 | Disclosed tag (enum index) | Public | Stellar | Everyone |
-| `auditor_blob` — enc(`{tier, issuer}`) to the auditor key | Public | Stellar `PassRecord` | The warranted auditor only |
+| `auditor_blob = Poseidon2(auditor_pubkey, tier, issuer_id, nullifier, nonce)` | Public | Stellar `PassRecord` | The warranted auditor only |
 | Holder identity, KYC documents | — | Nowhere on chain | The issuer only, once, off-chain |
 
-**What a chain observer sees:** on Midnight, that an issuer added/revoked *a*
-credential; on Stellar, that a corridor granted *a* pass and burned a
+**What a chain observer sees:** on Midnight, the licensed-issuer set and each
+issuer's epoch; on Stellar, that a corridor granted *a* pass and burned a
 nullifier. **What nobody sees:** who, what tier, which issuer for which holder,
 or the holder's behaviour across corridors.
 
@@ -83,36 +77,37 @@ or the holder's behaviour across corridors.
 **On-chain layers — done or close.**
 
 - The Soroban contracts (`corridor_registry`, `corridor_attestation`, a mock
-  verifier behind a stable interface) are implemented and unit-tested. The
-  attestation flow — bind proof to policy, verify, burn nullifier, record the
-  pass, gate payout — works end to end against the mock verifier.
-- The Noir circuit is written: credential inclusion, revocation
-  non-membership, tier threshold, expiry, per-corridor nullifier, bounded
-  disclosure, auditor binding.
-- The Midnight credential registry is written in Compact.
+  verifier behind a stable interface) are implemented and unit-tested (25 host
+  tests). The attestation flow — bind proof to policy, verify, burn nullifier,
+  record the pass, gate payout — works end to end against the mock verifier.
+- The Noir circuit is written and does a **real Grumpkin Schnorr signature
+  verification** plus tier threshold, expiry, epoch floor, per-corridor
+  nullifier, bounded disclosure, auditor binding — 18 tests, 73 ACIR opcodes,
+  `nargo execute` solves a real signed fixture.
+- The SDK signs (`issueCredential`), builds the witness, and verifies it
+  locally; its signer is checked against the circuit's verifier.
+- The Midnight issuer registry is written in Compact and compiles in CI.
 
 **What stands between here and a pilot:**
 
 1. **Real proof verification** — swap the mock for the UltraHonk Soroban
    verifier (`indextree/ultrahonk_soroban_contract`) and pin a verification
    key. Reference implementations exist; this is integration, not research.
-2. **Poseidon2 domain alignment** — the hash in Noir and the
-   `poseidon2_permutation` host function on Soroban must be parameter-identical
-   or the roots won't match. A focused task.
-3. **Root-sync relayer** — a small service watching Midnight and calling
-   `post_root`. MVP is a single labeled relayer; the hardening path
-   (multi-relayer majority, then a light client once Midnight's interop phase
-   ships) is in the roadmap.
-4. **Issuer + holder tooling** — a CLI issuer and a holder-side prover
-   (`@corridor/verify`), then the operator/holder UIs.
+2. **Testnet redeploy** — the deployed contracts ran the pre-Option-B ABI; a
+   redeploy against the issuer-signed-statement contracts is a focused task.
+3. **Issuer + holder tooling** — a CLI issuer (KYC → sign, CSPRNG-enforced) and
+   a holder-side prover (`@corridor/verify`), then the operator/holder UIs.
+4. **Fee-sponsoring tx-relayer** — a small service that submits `enter` so the
+   holder's Stellar account is never linked to a pass. It cannot forge a pass.
 5. **One pilot corridor** — a small anchor or an NGO disbursement program on
    testnet with real test users, auditor mode enabled.
 
-**Honest assessment.** Corridor is a working two-network architecture with the
-on-chain pieces built and one clearly-labeled federated component (the
-relayer) on a documented path to removal. It is not a finished
-trust-minimised bridge and is not pitched as one. The remaining work is
-integration, tooling, and partnerships — not protocol invention.
+**Honest assessment.** Corridor is a Stellar-native architecture with the
+on-chain and ZK pieces built and one clearly-labeled federated component (the
+tx-relayer, a liveness dependency only). It is not pitched as a trustless
+bridge — under this design there is no cross-chain bridge to trust. The
+remaining work is integration, tooling, and partnerships — not protocol
+invention.
 
 ## Funding path
 

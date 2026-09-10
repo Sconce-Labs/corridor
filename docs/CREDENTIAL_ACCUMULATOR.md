@@ -1,10 +1,10 @@
 # Credential accumulator & revocation — architecture decision
 
-**Status: NEEDS SIGN-OFF.** This resolves audit findings **C1** (revocation
-non-functional) and **C4** (cross-chain hash mismatch). It changes how
-credentials are issued and how the circuit proves inclusion. Nothing below is
-built yet — the current `corridor.compact` + circuit revocation logic is known
-broken and must be replaced with whichever option is chosen here.
+**Status: DECIDED & IMPLEMENTED (2026-09-10) — Option B.** This resolved audit
+findings **C1** (revocation non-functional) and **C4** (cross-chain hash
+mismatch), and retired **H1/H2** and `corridor-relayer`. The options analysis
+below is kept for the record; the **Decision** section at the bottom describes
+what was actually built.
 
 ---
 
@@ -129,11 +129,54 @@ requirement, move to Option A.
 | corridor-sdk | `buildWitness` assembles the signature statement; issuer SDK signs |
 | ABI | public inputs change: drop the two roots, add `issuer_pubkey`, `cred_epoch` |
 
-## Interim (already done, independent of this decision)
+---
 
-- The circuit's **revocation logic has been rewritten as a proper indexed
-  Merkle tree** (low-leaf non-membership) in `corridor-circuits` — sound on the
-  BN254 side regardless of which option is chosen, and reusable as Option A's
-  accumulator or Option B strategy 3.
-- `post_root` is now behind an admin allowlist (C2) — a stopgap that Option B
-  removes entirely.
+## Decision (2026-09-10) — what was actually built
+
+**Option B, revocation strategies 1 + 2.** Details that differ from the sketch
+above:
+
+- **Curve: Grumpkin**, not Baby Jubjub. Grumpkin is Barretenberg's embedded
+  curve for BN254 (`y² = x³ − 17`), so signature verification is native in Noir
+  with no non-native field arithmetic. `noir-lang/schnorr` v0.4.0.
+- **Scheme: Schnorr over Poseidon2**, not EdDSA. Challenge
+  `e = Poseidon2([DST, R.x, A.x, A.y, msg])`, `DST =
+  poseidon2_hash_bytes("schnorr_grumpkin_poseidon2")`. The SDK signer
+  (`corridor-sdk/src/schnorr.ts`) matches the circuit's verifier bit-for-bit
+  (pinned test vector).
+- **Signed message:** `Poseidon2([holder_binding, tier, expiry, cred_epoch])`
+  where `holder_binding = Poseidon2([holder_secret, salt])`. The issuer never
+  sees `holder_secret` — only `holder_binding`.
+- **Issuer id:** `Poseidon2(pk.x, pk.y)`. This is the id a corridor policy
+  allowlists (`CorridorPolicy.accepted_issuers`) and `corridor.compact`
+  registers.
+- **Revocation:**
+  - *Strategy 1* — short `expiry` (days), issuer stops re-signing. Primary.
+  - *Strategy 2* — `min_cred_epoch` floor. Monotonic, set per-corridor on
+    Stellar (`corridor_registry.set_min_cred_epoch`) and mirrored per-issuer on
+    Midnight (`corridor.compact.bumpEpoch`). The circuit enforces
+    `cred_epoch >= min_cred_epoch`; `corridor_attestation.enter()` binds the
+    public `min_cred_epoch` to the policy value.
+  - *Strategy 3* (targeted revocation IMT) — designed, not built.
+
+### Public inputs (9), final
+
+`corridor_id, min_tier, now, nullifier, disclosed_tag, issuer_id,
+min_cred_epoch, auditor_pubkey, auditor_blob` — see `corridor-contracts/ABI.md`.
+
+### Landed in
+
+| Repo | Commit theme |
+|------|--------------|
+| corridor-circuits | `feat!: rewrite the circuit for Option B` — Schnorr verify, no Merkle; 73 ACIR opcodes (was ~3200) |
+| corridor-sdk | `feat!: rebuild the SDK for Option B` — `schnorr.ts`, `witness.ts`, `verify-local.ts`, `issueCredential` |
+| corridor-contracts | `feat!: contracts for Option B` — drop `post_root` + relayer allowlist; add `set_min_cred_epoch` + `CredEpochMismatch` |
+| corridor (this repo) | `feat!: corridor.compact is an issuer registry + epoch log` |
+| corridor-relayer | archived — nothing to sync |
+
+### Superseded
+
+- The indexed-Merkle-tree revocation work (`imt.nr`, `IndexedMerkleTree`) was an
+  interim C1 fix. Option B removed it; it lives in git history if Option A / a
+  targeted-revocation IMT is ever needed.
+- `post_root` and its admin allowlist (the C2 stopgap) are gone.

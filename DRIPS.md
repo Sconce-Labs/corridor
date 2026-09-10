@@ -19,17 +19,15 @@ they count in the next cycle.
 
 ## Where to start
 
-| Area | Skills | Good first issues |
-|------|--------|-------------------|
 | Repo | Skills | Good first issues |
 |------|--------|-------------------|
-| **corridor-contracts** | Rust, `soroban-sdk` | payout-push mode, event schema, fuzz the public-input decoder, gas benchmarking |
-| **corridor-circuits** | Noir, ZK | Merkle fixtures + witness builder, Poseidon2 conformance test, indexed-Merkle-tree revocation |
-| **corridor** (`contracts/`) | Compact / Midnight | get `corridor.compact` compiling, simulator tests, Preprod deploy script |
-| corridor-relayer _(tbd)_ | TS / Rust services | build the root-sync service (M5), multi-relayer quorum |
-| **corridor-sdk** | TypeScript | flesh out `@corridor/verify`, issuer CLI |
-| **corridor** (`src/`) | React / TS | holder app, operator console (M6) |
-| **corridor** (docs) | writing | keep `ARCHITECTURE.md` honest, threat model, USAGE guide |
+| **corridor-contracts** | Rust, `soroban-sdk` | testnet redeploy (M2), payout-push mode, fuzz the public-input decoder, gas benchmarking |
+| **corridor-circuits** | Noir, ZK | pin `bb` in CI, targeted-revocation IMT (deferred), circuit review |
+| **corridor** (`contracts/`) | Compact / Midnight | `corridor.compact` simulator tests, Preprod deploy script |
+| **corridor-sdk** | TypeScript | prover client, tx-relayer client, issuer CLI (KYC → sign, CSPRNG enforcement) |
+| tx-relayer _(new, M6)_ | TS / Rust services | build the fee-sponsoring `enter` relayer (`docs/TX_RELAYER.md`) |
+| **corridor** (frontend, M6) | React / TS | holder app, operator console |
+| **corridor** (docs) | writing | keep `ARCHITECTURE.md` honest, threat model |
 
 Each milestone in [`ROADMAP.md`](./ROADMAP.md) is decomposed into issues in
 [`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md) — open each in the repo it

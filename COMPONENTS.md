@@ -2,15 +2,15 @@
 
 Corridor is split across repos so each piece has its own CI, versioning, and
 [Drips Wave](./DRIPS.md) issue surface. This repo is the **hub**: architecture,
-docs, the Midnight credential contract, and the frontend.
+docs, and the Midnight issuer-registry contract.
 
 | Repo | Contents | Language | Status |
 |------|----------|----------|--------|
-| **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | `ARCHITECTURE.md`, `PROPOSAL.md`, `ROADMAP.md`, `HANDOFF.md`, `DRIPS.md`, `docs/`, `contracts/corridor.compact` (Midnight), `src/` (frontend) | Compact, TS | active · frontend live at [corridor-pink.vercel.app](https://corridor-pink.vercel.app) |
-| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace: `corridor_registry`, `corridor_attestation`, `verifier_mock`, `corridor_types`, `poseidon_conformance`. **Owns the public-input ABI** (`ABI.md`). | Rust / soroban-sdk 25 | ✅ deployed to Stellar testnet |
-| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit | Noir | ✅ compiles + tests; needs real fixtures |
-| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` client SDK | TypeScript | ✅ `getPolicy`/`isCleared`/`buildWitness` real; prover+relayer clients pending |
-| **[Sconce-Labs/corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)** | Midnight→Stellar root-sync service | TypeScript | ⏳ Stellar read/write real; Midnight reader pending (M5) |
+| **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | `ARCHITECTURE.md`, `PROPOSAL.md`, `ROADMAP.md`, `HANDOFF.md`, `DRIPS.md`, `docs/`, `contracts/corridor.compact` (Midnight issuer registry), `midnight/` (wallet tooling) | Compact, TS | active |
+| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace: `corridor_registry`, `corridor_attestation`, `ultrahonk_verifier`, `verifier_mock`, `corridor_types`, `poseidon_conformance`. **Owns the public-input ABI** (`ABI.md`). | Rust / soroban-sdk 25 | ✅ 25 tests (Option B); testnet redeploy pending (M2) |
+| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit (Grumpkin Schnorr) | Noir | ✅ 18 tests, signed fixture, `nargo execute` |
+| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` client SDK + Grumpkin signer (`issueCredential`) | TypeScript | ✅ 23 tests; `getPolicy`/`isCleared`/`buildWitness` real; prover+tx-relayer clients pending |
+| **[Sconce-Labs/corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)** | ~~Midnight→Stellar root-sync service~~ | TypeScript | 🗄️ **archived** — Option B removed root sync |
 
 ## The ABI seam
 
@@ -21,13 +21,19 @@ assembles them the same way. A layout change is a coordinated PR across
 `corridor-contracts` + `corridor-circuits` + `corridor-sdk`.
 
 **Poseidon2 conformance:** `poseidon2([1,2]) == 0x038682…1ed7383` is asserted in
-the circuit, the SDK, and `corridor-contracts` — all three agree. Midnight's
-Compact tree hash still needs the same check (M4).
+the circuit, the SDK, and `corridor-contracts` — all three agree. Midnight
+(`corridor.compact`) no longer participates in any hash-critical path under
+Option B — it only stores an issuer directory.
+
+**Schnorr conformance:** `corridor-sdk/src/schnorr.ts` is checked against
+`noir-lang/schnorr` v0.4.0's pinned test vector, and the generated `fixture.nr`
+is solved by `nargo execute` in circuit CI — so the SDK signer and the circuit
+verifier provably agree.
 
 ## Working across repos
 
 ```bash
-for r in corridor corridor-contracts corridor-circuits corridor-sdk corridor-relayer; do
+for r in corridor corridor-contracts corridor-circuits corridor-sdk; do
   git clone "https://github.com/Sconce-Labs/$r.git"
 done
 ```

@@ -1,10 +1,11 @@
 # Corridor — Project Handoff
 
-_Last updated: 2026-09-10_
+_Last updated: 2026-09-10 (post Option B)_
 _Hub repo: github.com/Sconce-Labs/corridor · Maintainer: Sconce Labs_
 
 Written so **any person or AI agent can pick up cold**. Read this, then
-[`ARCHITECTURE.md`](./ARCHITECTURE.md), [`COMPONENTS.md`](./COMPONENTS.md), then
+[`ARCHITECTURE.md`](./ARCHITECTURE.md), [`COMPONENTS.md`](./COMPONENTS.md),
+[`docs/CREDENTIAL_ACCUMULATOR.md`](./docs/CREDENTIAL_ACCUMULATOR.md), then
 [`ROADMAP.md`](./ROADMAP.md).
 
 ---
@@ -13,51 +14,73 @@ Written so **any person or AI agent can pick up cold**. Read this, then
 
 A **portable proof of eligibility** for cross-border payments. KYC once with a
 regulated issuer; then prove "I'm cleared for this payment corridor" to any
-number of providers, revealing nothing. Hybrid by design:
+number of providers, revealing nothing.
 
-- **Midnight** holds the credential (issuer writes a commitment; holder owns the
-  private opening).
-- A **Noir → UltraHonk** proof, generated on the holder's device, is the bridge.
+- An **issuer** runs KYC once, then **signs** a short-lived statement
+  `{ holder_binding, tier, expiry, cred_epoch }` with a **Grumpkin** key. The
+  holder keeps the signature (and their `holder_secret`, never shared).
+- A **Noir → UltraHonk** proof, generated on the holder's device, proves
+  knowledge of that signature plus the corridor's policy predicates.
 - **Stellar / Soroban** runs corridor policy, verifies the proof on-chain
-  (Protocol 25 primitives), burns a per-corridor nullifier, records the pass,
-  and gates the payout.
+  (Protocol 25 primitives; mock today, M3 for real), burns a per-corridor
+  nullifier, records the pass, and gates the payout.
+- **Midnight** (`corridor.compact`) is a public **issuer registry** — who the
+  licensed issuers are and each issuer's current credential epoch. No holder
+  data.
+
+### Option B (2026-09-10)
+
+The original design had Midnight build a credential Merkle tree, a relayer sync
+its root to Stellar, and the circuit prove inclusion. The audit
+([`AUDIT.md`](./AUDIT.md)) found this **cannot work** — Midnight is BLS12-381 /
+`transientHash`, the circuit + Stellar P25 are BN254 / Poseidon2, so the roots
+are values in different fields — and that revocation was a no-op. **Option B**
+(`docs/CREDENTIAL_ACCUMULATOR.md`) replaced the accumulator with issuer-signed
+statements. This removed the credential/revocation trees, `post_root`, the
+relayer allowlist, and the `corridor-relayer` repo.
 
 ---
 
-## 2. Repo map (split 2026-09-10)
+## 2. Repo map
 
 | Repo | Contents | State |
 |------|----------|-------|
-| **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | docs, `contracts/corridor.compact` (Midnight), `src/` (frontend, live at corridor-pink.vercel.app) | active |
-| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace; owns `ABI.md` | ✅ 14 tests + poseidon conformance, deployed to testnet |
-| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit | ✅ compiles + 3 tests (beta.26) |
-| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` TS SDK | ✅ reads + `buildWitness` real; live testnet tests |
-| **[Sconce-Labs/corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)** | root-sync service | ✅ Stellar half real; Midnight reader = M5 |
+| **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | docs, `contracts/corridor.compact` (Midnight issuer registry), `midnight/` (wallet tooling) | active |
+| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace; owns `ABI.md` | ✅ 25 tests + poseidon conformance; testnet redeploy pending (M2) |
+| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit (Grumpkin Schnorr) | ✅ 18 tests, signed fixture, `nargo execute` |
+| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` TS SDK + Grumpkin signer | ✅ 23 tests; reads + `buildWitness` + `issueCredential` real |
+| **[Sconce-Labs/corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)** | ~~root-sync service~~ | 🗄️ **archived** (Option B) |
 
-All 5 repos are public on GitHub with CI. Local checkouts:
+All repos public with CI. Local checkouts:
 `C:/Users/samue/Documents/{corridor,corridor-contracts,corridor-circuits,corridor-sdk,corridor-relayer}`,
 each on `main` tracking its remote. `gh` is available in **WSL**
-(`wsl -e bash -lc '…'`), authed as `samjay8` (admin on the org).
+(`wsl -e bash -lc '…'`), authed as `samjay8` (admin on the org). Branch
+protection is on for `main` in every repo (required status check; admins can
+bypass).
 
 ---
 
 ## 3. The design in 60 seconds
 
 ```
-Issuer ──issueCredential(commitment)──▶ Midnight (corridor.compact)
-                                         credentials/revoked Merkle trees, epoch
-                                              │  relayer reads roots
-                                              ▼
-Holder device ──Noir proof (UltraHonk)──▶ Stellar corridor_attestation.enter()
-  private: secret, tier, expiry, paths      │ binds proof↔policy, verifies,
-  public:  roots, corridor_id, nullifier    │ burns nullifier, records PassRecord
-                                            ▼
-                     Corridor operator payout ──is_cleared()?──▶ pay / deny
+Issuer (off-chain KYC) ──Schnorr_sign(issuer_sk, statement)──▶ Holder keeps { tier, expiry, cred_epoch, salt, pubkey, sig }
+  statement = Poseidon2([Poseidon2([holder_secret, salt]), tier, expiry, cred_epoch])
+
+Holder device ──Noir proof (UltraHonk)──────────▶ Stellar corridor_attestation.enter()
+  private: holder_secret, tier, expiry, cred_epoch,   │ binds proof↔policy (issuer allowlist,
+           salt, issuer_pk, sig, auditor_nonce        │ min_tier, min_cred_epoch, auditor key,
+  public:  corridor_id, min_tier, now, nullifier,     │ time skew), verifies, burns nullifier,
+           disclosed_tag, issuer_id, min_cred_epoch,  │ records PassRecord
+           auditor_pubkey, auditor_blob               ▼
+                       Corridor operator payout ──is_cleared()?──▶ pay / deny
+
+Midnight corridor.compact:  issuers set + issuerEpoch map  (read by operators to set min_cred_epoch)
 ```
 
-Why both chains: Midnight = confidential credential custody; Stellar = cheap
-public settlement with native ZK verification. The bridge is a proof, not a
-trusted message. Full rationale: `PROPOSAL.md` §"Why two networks".
+Bulk revocation: issuer raises `cred_epoch` (publishes via `bumpEpoch` on
+Midnight); operators raise `min_cred_epoch` on their Stellar policy; the circuit
+enforces `cred_epoch >= min_cred_epoch`. Primary revocation is just **short
+expiry** — the issuer stops re-signing.
 
 ---
 
@@ -65,116 +88,123 @@ trusted message. Full rationale: `PROPOSAL.md` §"Why two networks".
 
 | Component | Repo / path | State | Next |
 |-----------|-------------|-------|------|
-| Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 14 host tests, **deployed + verified on testnet** | real verifier (M3) |
-| Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | add the Midnight/Compact leg (M4) |
-| Public-input ABI (`PI_*`) | corridor-contracts `crates/corridor_types` + `ABI.md` | ✅ source of truth | keep circuit + SDK in sync |
-| Noir circuit | corridor-circuits | ✅ `nargo check` + 3 `nargo test` green (beta.26) | real Merkle fixtures (M2) |
-| SDK `getPolicy`/`isCleared`/`passes`/`buildWitness` | corridor-sdk | ✅ real, live testnet tests | `requestProof` + `enter` clients (M6) |
-| Relayer Stellar read/write | corridor-relayer | ✅ real (`currentEpoch`, `postRoot`) | `readRoots` from Midnight indexer (M5) |
-| Poseidon2 cross-chain domain match | circuit ↔ host fn ↔ Compact | ❌ | conformance test (M2) — hard gate |
+| Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 25 host tests (Option B ABI) | testnet redeploy (M2), real verifier (M3) |
+| Public-input ABI (`PI_*`, 9 inputs) | corridor-contracts `crates/corridor_types` + `ABI.md` | ✅ source of truth | keep circuit + SDK in sync |
+| Noir circuit (Grumpkin Schnorr verify) | corridor-circuits | ✅ 18 `nargo test`, `nargo execute` solves a real signed fixture | pin `bb` when beta.26 gets a mapping |
+| Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | — |
+| Schnorr conformance (SDK signer ⇄ circuit verifier) | sdk + circuits | ✅ pinned vector + `nargo execute` in CI | — |
+| SDK reads + `buildWitness` + `issueCredential` + signer | corridor-sdk | ✅ real, live testnet reads | `requestProof` + `enter` clients (M6) |
 | Real UltraHonk verifier | corridor-contracts | ❌ | wire `indextree/ultrahonk_soroban_contract` (M3) |
-| Midnight credential registry | this repo `contracts/corridor.compact` | ✅ compiles in CI | simulator tests + Preprod (M4) |
-| Root-sync relayer | corridor-relayer | ❌ | M5 |
-| `@corridor/verify` SDK | corridor-sdk | ⏳ skeleton | M6 |
-| Frontend | this repo `src/` | ⚠️ old single-chain UI | rewrite M6 |
+| Midnight issuer registry | this repo `contracts/corridor.compact` | ✅ compiles in CI (6 circuits) | simulator tests + Preprod (M4) |
+| Fee-sponsoring tx-relayer | spec `docs/TX_RELAYER.md` | ❌ | build (M6) |
+| Frontend | this repo | ⚠️ stale scaffold, no source in repo | build fresh (M6) |
 
-### Testnet deployment (Stellar)
+### Testnet deployment (Stellar) — STALE, needs redeploy
 
-Live. Record: `corridor-contracts/deployments/testnet.json`.
+The addresses below ran the **pre-Option-B ABI** and no longer match the
+contracts. Redeploying is **M2**.
 
-| Contract | Address |
-|----------|---------|
+| Contract | Address (pre-Option-B) |
+|----------|------------------------|
 | `corridor_registry` | `CB6LZV6TJN6YZ2O7FVLNRCJMRVBXCDG6JFFREHGY2BD5K4EYWJ6WKT2K` |
 | `corridor_attestation` | `CCAGXABIZWHNLA754LSQCFPA35VLJZEH24MD5OGJNIEMFQHZ7LWQD5AR` |
 | `verifier_mock` | `CDT4ZVOIAI5JN4TC3WZYIBJ3NOJENZWKD2ZNOTSVVZBZBZ5GMOSNJEQP` |
 
 Deployer key `corridor`: `GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR2O`
-(testnet only, in the local `stellar` CLI keystore). End-to-end verified:
-`register` → `post_root` → `enter` → `is_cleared == true`; replay rejected with
-`NullifierUsed` (Error #12).
+(testnet only, in the local `stellar` CLI keystore). Record:
+`corridor-contracts/deployments/testnet.json` (also stale). `scripts/demo.sh`
+and `scripts/deploy_testnet.sh` still reference `post_root` — fix during the
+redeploy.
 
 ---
 
 ## 5. Traps / things to know
 
-1. **`verifier_mock` returns `true` by default.** Every happy-path test (and the
-   testnet demo) trusts the mock. Real soundness starts at M3.
+1. **`verifier_mock` returns `true` by default.** Every happy-path test trusts
+   the mock. Real soundness starts at M3.
 
-2. **Poseidon2 — 3 of 4 legs verified.** `poseidon2([1,2]) == 0x038682…1ed7383`
-   is asserted in the circuit (`noir-lang/poseidon` v0.3.0), the SDK
-   (`@zkpassport/poseidon2`), and `corridor-contracts` (`rs-soroban-poseidon`),
-   and they match. **The Midnight/Compact tree hash is NOT yet checked** — M4
-   must confirm it produces the same vector, or credentials issued on Midnight
-   won't verify against on Stellar.
+2. **The circuit does a real signature check now.** `eligibility::check` runs
+   `schnorr::verify_signature` (Grumpkin, `noir-lang/schnorr` v0.4.0). The
+   committed `fixture.nr` carries a real signature from the SDK signer; regen it
+   with `cd corridor-sdk && npm run gen-fixture -- --write` (needs
+   `corridor-circuits` checked out as a sibling). Nonces are deterministic
+   (EdDSA-style) so the fixture is byte-stable.
 
-3. **The relayer is trusted in the MVP.** `post_root` is
-   permissionless-but-logged. A dishonest root admits bad credentials or
-   censors good ones. Hardening path: `ARCHITECTURE.md` §6, ROADMAP M5. Never
-   call Corridor trustless before M5+.
+3. **Grumpkin generator.** `GY = 0x02cf135e7506a45d632d270d45f1181294833fc48d823f272c`
+   (the **even** root — Barretenberg's choice). Getting this wrong = "bad issuer
+   signature" in-circuit. The SDK pins it and is checked against
+   `noir-lang/schnorr`'s test vector.
 
-4. **Nullifier state rent.** `corridor_attestation` stores one persistent entry
-   per pass, TTL ~30 days. Don't let a nullifier expire while its credential is
-   still valid — that permits replay. M6 needs an archival story.
+4. **`holder_secret` is load-bearing.** It hides the holder AND makes nullifiers
+   unlinkable. It must be CSPRNG (`randomSecret()` / `assertStrongSecret` in the
+   SDK). The issuer only ever sees `holder_binding = Poseidon2([holder_secret,
+   salt])`. Enforcing this in issuer tooling is **M5** (audit H5).
 
-5. **The old `src/` frontend is a single-chain relic** with a *faked*
-   `CircuitCall` (`setTimeout` + hardcoded `42`). Don't wire anything new to
-   it; it's an M6 rewrite.
+5. **Nullifier state rent.** `corridor_attestation` stores one persistent entry
+   per pass; TTL ~2y, bumped on write and on `is_cleared`/`pass_record` reads.
+   Don't let a nullifier expire while its credential could still be presented.
 
-6. **Auditor mode is a commitment, not encryption yet.** `auditor_blob` is a
-   hiding Poseidon2 commitment. Real decryption needs in-circuit ECIES (M7).
+6. **Auditor mode is a commitment, not encryption.** `auditor_blob =
+   Poseidon2([auditor_pubkey, tier, issuer_id, nullifier, auditor_nonce])`.
+   `auditor_pubkey` is a **policy field** the contract binds (audit H4 fix), so
+   the holder can't substitute their own. Real decryption = in-circuit ECIES,
+   M7.
 
-7. **Compact contract compiles but is untested.** `contracts/corridor.compact`
-   compiles clean in the hub CI ("Compiling 4 circuits"), so the `Set` /
-   `MerkleTree` / `persistentHash` API is correct. Still owed (M4): simulator
-   tests, a review of the issuer-auth model, Preprod deploy. On Windows use WSL
-   — `which compact` there is the NTFS tool.
+7. **`corridor.compact` compiles but is untested.** CI runs `compact compile`
+   ("Compiling 6 circuits"). Owed (M4): simulator tests, Preprod deploy. On
+   Windows use WSL — `compact` there is the real tool. It needs toolchain
+   ≥ 0.34 (`compact update 0.34`); the `pragma` is `language_version >= 0.24`.
 
-8. **`.midnight-state.json`** still holds plaintext Preview/Preprod seeds; it is
-   gitignored (verified). Never commit or reuse for value.
+8. **`midnight/` tooling predates Option B.** `midnight/cli.ts` /
+   `e2e-call.ts` call an `enterCorridor` circuit that no longer exists. Under
+   Option B the holder never touches Midnight — only issuers and the admin do.
+   Trim this in M4.
 
-9. **Windows GNU linker.** `corridor-contracts/.cargo/config.toml` adds
-   `-Wl,--exclude-all-symbols` to get past `ld`'s "export ordinal too large" on
-   soroban-sdk. Harmless on Linux CI. `cargo test` first build is ~6 min.
+9. **The Vercel app is orphaned.** `corridor-pink.vercel.app` serves a stale
+   Vite build; no frontend source exists in any repo. Its favicon is a
+   placeholder 🌑 emoji. The real brand mark is in `assets/` (see
+   `assets/README.md`). M6 builds a fresh frontend.
+
+10. **Windows GNU linker.** `corridor-contracts/.cargo/config.toml` adds
+    `-Wl,--exclude-all-symbols` to get past `ld`'s "export ordinal too large" on
+    soroban-sdk. Harmless on Linux CI. `cargo test` first build is ~6 min.
+
+11. **No Claude attribution in commits** (maintainer's standing instruction).
 
 ---
 
-## 6. Cleanup (done 2026-09-10 — audit M4)
+## 6. Brand / org
 
-- ✅ Deleted the retired `counter.compact`, the React counter frontend
-  (`src/App.tsx`, `src/components/`, `src/hooks/`), `tests/counter*`, the
-  counter ZK artifacts, `index.html` / `vite.config.ts` / `vercel.json`.
-- ✅ Moved the Midnight deploy/CLI tooling to `midnight/` (see
-  `midnight/README.md` — still references `counter`, adapt for M4).
-- Still owed: `contracts/managed/`, `dist/`, `midnight-level-db/`,
-  `node_modules/` are gitignored build dirs; the Vercel deployment
-  (`corridor-pink.vercel.app`, the repo homepage) still serves the old counter
-  UI — repoint or retire it.
+- `assets/` has `logo.svg` + PNGs (512/256/128) + `favicon.svg`/`.png`. The mark
+  is a lit passage receding to a point, teal→blue on `#0A0F1C`.
+- **Org avatar and repo social previews have no GitHub API** — upload manually:
+  org avatar at `github.com/organizations/Sconce-Labs/settings/profile`
+  (`logo.png`); per-repo social preview in each repo's Settings.
+- The deployed app's 🌑 favicon is a Midnight-era placeholder — replace with
+  `assets/favicon.svg` when the frontend is rebuilt (M6).
 
 ---
 
 ## 7. Drips Wave — remaining owner action
 
-All 5 repos are pushed with CI. What's left:
-
 1. **List the repos on [drips.network](https://www.drips.network/wave/stellar)**
-   (Stellar Wave) — at least `corridor` and `corridor-contracts`.
+   — at least `corridor` and `corridor-contracts`.
 2. **Open the issues** from [`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md) in
-   the repo each belongs to (that file's header table maps them). The label set
-   (`drips`, `milestone: M*`, `complexity: *`, `area: *`, `good first issue`)
-   already exists in every repo.
+   the repo each belongs to. The label set already exists in every repo.
+   `corridor-relayer` issues are void — fold any into the M6 tx-relayer.
 
 ---
 
 ## 8. Immediate next actions (engineering)
 
-1. **M2 finish** — real Merkle fixtures in `corridor-circuits`: a committed
-   small tree + a generator that feeds both `nargo execute` and the SDK's
-   `buildWitness`, then `bb prove` / `bb verify` on it.
+1. **M2 redeploy** — `cd corridor-contracts`, rebuild wasm, deploy
+   `verifier_mock` + `corridor_registry` + `corridor_attestation` to testnet,
+   refresh `deployments/testnet.json`, fix `scripts/demo.sh` +
+   `scripts/deploy_testnet.sh` (no `post_root`), re-run the end-to-end smoke
+   with an Option B proof from `buildWitness`.
 2. **M3 start** — vendor `indextree/ultrahonk_soroban_contract` into
    `corridor-contracts/contracts/ultrahonk_verifier` behind the `Verifier`
-   interface; generate the VK from the M2 circuit; end-to-end proof → `enter`
-   on testnet.
-3. **M4** — `corridor.compact` simulator tests + Preprod deploy; add the
-   Midnight leg to the Poseidon2 conformance table in `ABI.md`.
-4. **M5** — `corridor-relayer` `IndexerMidnightReader.readRoots` against the
-   Midnight indexer (needs M4).
+   interface; generate the VK from the circuit; end-to-end proof → `enter`.
+3. **M4** — `corridor.compact` simulator tests + Preprod deploy; trim
+   `midnight/` to the issuer/admin flows.
+4. **M5** — issuer CLI: KYC result → `issueCredential`, with CSPRNG enforcement.

@@ -1,157 +1,189 @@
-<img src="assets/logo.svg" alt="Corridor" width="96" align="left" />
+<div align="center">
+
+<img src="assets/logo.svg" alt="Corridor" width="96" />
 
 # Corridor
 
+**Portable, zero-knowledge proof of eligibility for cross-border payments.**
+
+Do KYC once with a regulated issuer. Then prove you're cleared to any payment
+corridor — without re-uploading documents and without revealing who you are.
+
 [![CI](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml/badge.svg)](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml)
+[![Stellar testnet](https://img.shields.io/badge/Stellar-testnet-brightgreen)](https://github.com/Sconce-Labs/corridor-contracts/blob/main/deployments/testnet.json)
+[![Drips Wave](https://img.shields.io/badge/Stellar-Drips%20Wave-7B61FF)](https://www.drips.network/wave/stellar)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
-<br clear="left" />
+[**Live demo →**](https://corridor-pink.vercel.app) &nbsp;·&nbsp;
+[Architecture](./ARCHITECTURE.md) ·
+[Proposal](./PROPOSAL.md) ·
+[Roadmap](./ROADMAP.md) ·
+[Handoff](./HANDOFF.md) ·
+[Audit](./AUDIT.md)
 
+</div>
 
-> Portable proof of eligibility for cross-border payments. Do KYC once with a
-> regulated issuer; prove you're cleared to any payment corridor — without
-> re-uploading documents and without revealing who you are.
+---
 
-Corridor is **Stellar-native, with an optional Midnight issuer layer**:
+## The problem
 
-- A regulated **issuer** runs KYC once, then signs a short-lived statement
-  `{ holder_binding, tier, expiry, cred_epoch }` with a **Grumpkin** key. The
-  holder stores that signature; the issuer never sees the holder's secret.
-- **Stellar / Soroban** runs the corridors. Operators register a policy
-  (accepted issuers, minimum tier, revocation floor), the holder's
-  zero-knowledge proof is verified on-chain (Protocol 25 primitives — the real
-  verifier is milestone M3; a mock stands in today), a per-corridor nullifier
-  is burned, a pass is attested, and payouts are gated on it.
-- **Midnight** (`corridor.compact`) is a public, auditable **issuer registry**:
-  who the licensed issuers are and each issuer's current credential epoch. It
-  holds no holder data.
+Every remittance provider, anchor, wallet, and aid program runs its own KYC. The
+same passport scan and liveness selfie, uploaded again and again — each provider
+a new custodian of identity data, each a target. The person has no reusable
+proof that they already passed.
 
-A **Noir → UltraHonk** proof, generated on the holder's device, proves
-knowledge of the issuer's signature plus every policy predicate — revealing
-nothing else. This is the **Option B** design; see
+## What Corridor does
+
+A person completes KYC/AML **once** with a regulated issuer and receives a
+signed credential. From then on they prove *"I am cleared to use this payment
+corridor"* to any number of providers with a **zero-knowledge proof** — no
+documents, no identity, nothing linkable across providers.
+
+```
+┌─ Issuer (off-chain, once) ─────────────┐   ┌─ Holder's device ──────────────┐   ┌─ Stellar / Soroban ───────────────┐
+│ runs KYC, then SIGNS a short-lived     │   │ Noir → UltraHonk proof of:     │   │ corridor_attestation.enter():     │
+│ statement with a Grumpkin key:         │──▶│  "I hold a valid issuer        │──▶│  binds proof ↔ policy, verifies,  │
+│  { holder_binding, tier, expiry, epoch}│   │   signature meeting this       │   │  burns a per-corridor nullifier,  │
+│                                        │   │   corridor's policy"           │   │  records a PassRecord             │
+└────────────────────────────────────────┘   └────────────────────────────────┘   └───────────────┬───────────────────┘
+                                                                                                  │
+   Midnight (corridor.compact): a public issuer registry — who the             operator's payout ── is_cleared()? ──▶ pay
+   licensed issuers are + each issuer's current credential epoch.
+```
+
+Corridor is **Stellar-native**. The Midnight contract is a plain public issuer
+directory — no shared state, no cross-chain bridge to trust. Revocation is short
+`expiry` plus a monotonic `min_cred_epoch` floor. See
 [`docs/CREDENTIAL_ACCUMULATOR.md`](./docs/CREDENTIAL_ACCUMULATOR.md) for why the
-earlier shared-Merkle-root design was dropped.
+earlier shared-Merkle-root design was dropped (BLS12-381 vs BN254 — the roots
+were values in different fields).
 
-See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full design and
-[`PROPOSAL.md`](./PROPOSAL.md) for the pitch. Corridor is split across repos —
-see [`COMPONENTS.md`](./COMPONENTS.md). This repo is the hub (docs + the
-Midnight issuer-registry contract).
+## Who sees what
 
-## Origin & participation
+| | Sees |
+|---|---|
+| **A Stellar observer** | a pass was granted on corridor C, a tag, an aggregate counter, a burned nullifier — via a fee-sponsoring relayer, so *not* the holder's account |
+| **A Midnight observer** | the set of licensed issuers and each issuer's current credential epoch — nothing per-credential, nothing per-holder |
+| **A warranted auditor** | only `{tier, issuer}` for the specific passes in their warrant, by re-deriving the auditor blob |
+| **Nobody, on either chain** | the holder's identity, documents, tier, expiry, the issuer↔holder link, or their activity across corridors |
 
-Corridor started as a project on **[Rise In](https://www.risein.com/)** — the
-"New Moon to Full" Midnight Builder Challenge — where the single-chain
-credential circuit and first frontend were built. It has since been re-scoped
-as a **Stellar-native** privacy payments product (with an optional Midnight
-issuer registry) and will **participate in the
-[Stellar Drips Wave](https://www.drips.network/wave/stellar)**, where
-contributors earn from an SDF-funded pool by closing issues with merged PRs.
-See [`DRIPS.md`](./DRIPS.md).
+---
 
-## Status
+## Repositories
 
-**Pre-MVP research build.** What's real: the **Option B** attestation contracts
-are deployed to Stellar testnet (2026-09-10) and the `register → enter →
-is_cleared` flow executes on-chain with the policy binding (issuer allowlist,
-tier, `min_cred_epoch` floor, time-skew, auditor key, nullifier uniqueness)
-enforced; the Noir circuit does a real Grumpkin Schnorr verification (73 ACIR
-opcodes) with a signed fixture `nargo execute` solves; the SDK signer matches
-the circuit's verifier against a pinned vector; the [site](https://corridor-pink.vercel.app)
-reads the live deployment and has an operator clearance checker.
+| Repo | Contents | CI |
+|------|----------|----|
+| **corridor** (this) | Hub — docs, the Midnight issuer-registry contract (`contracts/`), the web app (`web/`) | [![CI](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml/badge.svg)](https://github.com/Sconce-Labs/corridor/actions/workflows/ci.yml) |
+| **[corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban contracts (Rust) — policy registry, attestation, verifier. **Owns [`ABI.md`](https://github.com/Sconce-Labs/corridor-contracts/blob/main/ABI.md).** Live on testnet. | [![CI](https://github.com/Sconce-Labs/corridor-contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/Sconce-Labs/corridor-contracts/actions/workflows/ci.yml) |
+| **[corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | The Noir `corridor_eligibility` circuit — Grumpkin Schnorr, 73 ACIR opcodes | [![CI](https://github.com/Sconce-Labs/corridor-circuits/actions/workflows/ci.yml/badge.svg)](https://github.com/Sconce-Labs/corridor-circuits/actions/workflows/ci.yml) |
+| **[corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` — TypeScript SDK for all three roles (issuer, holder, operator) | [![CI](https://github.com/Sconce-Labs/corridor-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/Sconce-Labs/corridor-sdk/actions/workflows/ci.yml) |
+| ~~corridor-relayer~~ | Archived — the earlier design's root-sync service, removed under Option B | — |
 
-What's *not* yet real: on-chain **ZK verification** (mocked — M3) and the
-fee-sponsoring **tx-relayer** (M6). The **Option B redesign** (2026-09-10)
-resolved the two critical design holes the audit found — revocation and the
-cross-chain field mismatch — by dropping the accumulator entirely for
-issuer-signed statements.
+Full breakdown in [`COMPONENTS.md`](./COMPONENTS.md).
 
-See [`AUDIT.md`](./AUDIT.md), [`ROADMAP.md`](./ROADMAP.md),
-[`HANDOFF.md`](./HANDOFF.md), [`COMPONENTS.md`](./COMPONENTS.md).
+## Where it stands
 
-| Component | Repo | State |
-|-----------|------|-------|
-| Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts) | ✅ 25 host tests; **deployed + smoke-verified on testnet (Option B ABI)** |
-| Poseidon2 hash conformance (circuit ⇄ SDK ⇄ Soroban) | contracts / circuits / sdk | ✅ pinned vector matches across all three |
-| Noir `corridor_eligibility` circuit | [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits) | ✅ 18 tests, real Grumpkin Schnorr verify + signed fixture, `nargo execute` solves it (Noir 1.0.0-beta.26) |
-| `@corridor/verify` SDK | [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) | ✅ `getPolicy` / `isCleared` / `passes` / `buildWitness` / `issueCredential` / Grumpkin signer real (23 tests, live testnet reads); prover + relayer clients pending |
-| Real UltraHonk Soroban verifier | corridor-contracts | ❌ M3 — mock in place |
-| Midnight `corridor.compact` issuer registry | this repo (`contracts/`) | ✅ compiles in CI (6 circuits, Option B); ⏳ simulator tests + Preprod deploy (M4) |
-| Fee-sponsoring tx-relayer | — (`docs/TX_RELAYER.md`) | ❌ M6 — specced, not built |
-| Frontend | this repo (`web/`) — [corridor-pink.vercel.app](https://corridor-pink.vercel.app) | ✅ site + live testnet reads + operator clearance checker |
+**Pre-MVP research build**, participating in the
+**[Stellar Drips Wave](https://www.drips.network/wave/stellar)**.
 
-### Contract addresses
+| Layer | State |
+|-------|-------|
+| Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | ✅ 30 host tests; **deployed + smoke-verified on Stellar testnet (Option B ABI)** |
+| Noir `corridor_eligibility` circuit | ✅ 18 tests, real Grumpkin Schnorr verification, `nargo execute` on a signed fixture (Noir 1.0.0-beta.26) |
+| `@corridor/verify` SDK | ✅ 23 tests — Soroban reads, `buildWitness`, `verifyWitnessLocally`, `issueCredential`, Grumpkin signer |
+| Poseidon2 + Schnorr conformance (circuit ⇄ SDK ⇄ Soroban) | ✅ pinned vectors match; `nargo execute` on the SDK-signed fixture is the end-to-end check |
+| Web app (`web/`) | ✅ public site + live testnet reads + operator clearance checker → [corridor-pink.vercel.app](https://corridor-pink.vercel.app) |
+| Real on-chain UltraHonk verifier | ⏳ **M3** — a mock stands in |
+| Midnight `corridor.compact` issuer registry | ✅ compiles in CI (6 circuits); ⏳ simulator tests + Preprod deploy (M4) |
+| Fee-sponsoring tx-relayer + holder/operator flows | ⏳ **M6** — [`docs/TX_RELAYER.md`](./docs/TX_RELAYER.md) |
 
-Option B ABI, deployed 2026-09-10 (record:
-[`corridor-contracts/deployments/testnet.json`](https://github.com/Sconce-Labs/corridor-contracts/blob/main/deployments/testnet.json)):
+### Deployed addresses (Stellar testnet, Option B ABI)
 
-| Network | Contract | Address |
-|---------|----------|---------|
-| Stellar Testnet | `corridor_registry` | `CAV6DMVCBOU5DGQVFSPU2UIF62LNFW7PWAGC7HCPHVIUO6SWRPSX3B65` |
-| Stellar Testnet | `corridor_attestation` | `CD76SRVQS6QSDFL2DYWGPK2JGWQPZO4NBFOGRDR5UWLGCABLBONNUXK5` |
-| Stellar Testnet | `verifier_mock` (placeholder — M3) | `CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y` |
-| Midnight Preview | `corridor.compact` | not yet deployed (M4) |
+Record: [`corridor-contracts/deployments/testnet.json`](https://github.com/Sconce-Labs/corridor-contracts/blob/main/deployments/testnet.json)
 
-Smoke-verified on testnet: `register → enter` (PassGranted) `→ is_cleared ==
-true`; replay rejected with `NullifierUsed` (Error #12).
+| Contract | Address |
+|----------|---------|
+| `corridor_registry` | [`CAV6DMVC…B65`](https://stellar.expert/explorer/testnet/contract/CAV6DMVCBOU5DGQVFSPU2UIF62LNFW7PWAGC7HCPHVIUO6SWRPSX3B65) |
+| `corridor_attestation` | [`CD76SRVQ…XK5`](https://stellar.expert/explorer/testnet/contract/CD76SRVQS6QSDFL2DYWGPK2JGWQPZO4NBFOGRDR5UWLGCABLBONNUXK5) |
+| `verifier_mock` (M3 placeholder) | [`CBN7N7AT…K46Y`](https://stellar.expert/explorer/testnet/contract/CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y) |
+
+---
 
 ## Repository layout
 
-This hub repo:
-
 ```
-contracts/   Midnight issuer registry (Compact)
-web/         the public site + operator clearance checker (Vite/React → Vercel)
-midnight/    Midnight wallet + deploy tooling (predates Option B — being trimmed)
-docs/        usage + design notes
-*.md         architecture, proposal, roadmap, handoff, drips
+corridor/
+├── ARCHITECTURE.md  PROPOSAL.md  ROADMAP.md  HANDOFF.md  AUDIT.md  COMPONENTS.md  DRIPS.md
+├── docs/            USAGE · CREDENTIAL_ACCUMULATOR (the Option B decision) · TX_RELAYER · DRIPS_ISSUES
+├── contracts/
+│   └── corridor.compact           Midnight issuer registry (Compact)
+├── web/                           the public site + operator clearance checker (Vite + React → Vercel)
+├── midnight/                      Midnight wallet + deploy tooling (predates Option B — being trimmed)
+├── assets/                        brand — logo.svg, PNGs, favicon
+└── vercel.json                    builds web/ on push to main
 ```
-
-Other repos: [corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)
-(Soroban) · [corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)
-(Noir) · [corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk) (TS). See
-[`COMPONENTS.md`](./COMPONENTS.md).
-
-## Privacy model
-
-**A Stellar observer sees:** a pass was granted on corridor C, a tag index, an
-aggregate counter, a burned nullifier. Proofs are submitted via a fee-sponsored
-tx-relayer (M6) so the holder's Stellar account is not linked.
-
-**A Midnight observer sees:** the set of licensed issuers and each issuer's
-current credential epoch. Nothing per-credential, nothing per-holder.
-
-**Nobody sees, on either chain:** the holder's identity, documents, tier,
-expiry, the issuer↔holder link, or the holder's activity across corridors
-(nullifiers are per-corridor and mutually unlinkable).
-
-**A warranted auditor sees:** only the `{tier, issuer}` for the specific passes
-they hold a warrant for.
 
 ## Quickstart
 
 ```bash
-# This repo — Midnight contract (needs the Compact compiler)
-git clone https://github.com/Sconce-Labs/corridor.git && cd corridor
+# Web app (this repo)
+cd web && npm install && npm run dev        # → http://localhost:5173
+
+# Midnight issuer registry (needs the Compact compiler, toolchain ≥ 0.34)
 compact compile contracts/corridor.compact contracts/managed/corridor
 
 # Stellar contracts
 git clone https://github.com/Sconce-Labs/corridor-contracts.git
 cd corridor-contracts && cargo test --workspace && cd ..
 
-# Noir circuit  (needs noirup)
+# Noir circuit (needs noirup)
 git clone https://github.com/Sconce-Labs/corridor-circuits.git
 cd corridor-circuits/corridor_eligibility && nargo test && nargo execute
 ```
 
-## Contributing / Drips Wave
+## Continuous integration
 
-Corridor is built to be worked on in the open. See [`DRIPS.md`](./DRIPS.md) for
-the issue map and how contributions are rewarded through the Stellar Drips Wave.
+This repo — [`.github/workflows/ci.yml`](./.github/workflows/ci.yml), every push
+and PR to `main`:
+
+| Job | What it does |
+|-----|--------------|
+| **`web build`** | `npm ci` · `npm run typecheck` · `npm run build` in `web/` |
+| **`Midnight / Compact`** | `compact compile contracts/corridor.compact` |
+| **`Doc links`** | every relative Markdown link resolves |
+
+`main` is protected on `Midnight / Compact` + `Doc links`. Each sibling repo has
+its own CI (see the badges above and each repo's README). **A public-input ABI
+change is a coordinated PR across `corridor-contracts` + `corridor-circuits` +
+`corridor-sdk`.**
+
+### Deploying the web app
+
+`vercel.json` at the repo root builds `web/` and every push to `main`
+auto-deploys to [corridor-pink.vercel.app](https://corridor-pink.vercel.app).
+After a contract redeploy, update `web/src/config.ts` **and**
+`corridor-sdk/src/networks.ts`.
+
+---
+
+## Origin & participation
+
+Corridor started on **[Rise In](https://www.risein.com/)** (the "New Moon to
+Full" Midnight Builder Challenge) as a single-chain credential circuit, then was
+re-scoped as a **Stellar-native** privacy payments product. It now participates
+in the **[Stellar Drips Wave](https://www.drips.network/wave/stellar)** —
+contributors earn from an SDF-funded pool by closing `drips`-labelled issues
+with merged PRs. See [`DRIPS.md`](./DRIPS.md) and
+[`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md).
 
 ## Tech stack
 
 Stellar · Soroban (Rust, `soroban-sdk` 25) · Protocol 25 (BN254, Poseidon2) ·
-Noir · UltraHonk · Grumpkin Schnorr · Midnight · Compact · TypeScript
+Noir · UltraHonk · Grumpkin Schnorr · Midnight / Compact · TypeScript · React +
+Vite
 
 ## License
 
-Apache-2.0
+[Apache-2.0](./LICENSE)
+
+<div align="center"><sub>Built with love for Stellar.</sub></div>

@@ -46,9 +46,9 @@ relayer allowlist, and the `corridor-relayer` repo.
 | Repo | Contents | State |
 |------|----------|-------|
 | **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | docs, `contracts/corridor.compact` (Midnight issuer registry), `midnight/` (wallet tooling) | active |
-| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace; owns `ABI.md` | ✅ 25 tests + poseidon conformance; testnet redeploy pending (M2) |
-| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit (Grumpkin Schnorr) | ✅ 18 tests, signed fixture, `nargo execute` |
-| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` TS SDK + Grumpkin signer | ✅ 23 tests; reads + `buildWitness` + `issueCredential` real |
+| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace; owns `ABI.md` | ✅ 33 tests + poseidon conformance; deployed + smoke-verified on testnet |
+| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit (Grumpkin Schnorr) | ✅ 20 tests, signed fixture, `nargo execute` |
+| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` TS SDK + Grumpkin signer | ✅ 25 tests; reads + witness + 3-step issuance real |
 | **[Sconce-Labs/corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)** | ~~root-sync service~~ | 🗄️ **archived** (Option B) |
 
 All repos public with CI. Local checkouts:
@@ -88,7 +88,7 @@ expiry** — the issuer stops re-signing.
 
 | Component | Repo / path | State | Next |
 |-----------|-------------|-------|------|
-| Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 25 host tests; deployed + smoke-verified on testnet (Option B) | real verifier (M3) |
+| Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 33 host tests; deployed + smoke-verified on testnet (Option B) | real verifier (M3) |
 | Public-input ABI (`PI_*`, 9 inputs) | corridor-contracts `crates/corridor_types` + `ABI.md` | ✅ source of truth | keep circuit + SDK in sync |
 | Noir circuit (Grumpkin Schnorr verify) | corridor-circuits | ✅ 18 `nargo test`, `nargo execute` solves a real signed fixture | pin `bb` when beta.26 gets a mapping |
 | Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | — |
@@ -99,22 +99,22 @@ expiry** — the issuer stops re-signing.
 | Fee-sponsoring tx-relayer | spec `docs/TX_RELAYER.md` | ❌ | build (M6) |
 | Frontend | this repo `web/` | ✅ site + live reads + `is_cleared` checker | holder/operator flows (M6) |
 
-### Testnet deployment (Stellar) — Option B, 2026-09-10
+### Testnet deployment (Stellar) — Option B, redeployed 2026-09-10 (audit R2-M7)
 
 | Contract | Address |
 |----------|---------|
-| `corridor_registry` | `CAV6DMVCBOU5DGQVFSPU2UIF62LNFW7PWAGC7HCPHVIUO6SWRPSX3B65` |
-| `corridor_attestation` | `CD76SRVQS6QSDFL2DYWGPK2JGWQPZO4NBFOGRDR5UWLGCABLBONNUXK5` |
-| `verifier_mock` | `CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y` |
+| `corridor_registry` | `CDGMQ24E6OIBZB3EKJN5TUA5POYE6D5FNBL2II6SRLTYF32TE4HIEXJ6` |
+| `corridor_attestation` | `CCHWKVRCEKPJHEXREP5SCZ4TEKNBFYEFYA2VR3SET5AMG4WOC76LDL4K` |
+| `verifier_mock` (unchanged, reused) | `CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y` |
 
 Deployer key `corridor`: `GATI44YBCQ67LZOKSE4R7C7QOKJU7F4DQBMSR4CBGC5YZ7TQRYWCJR2O`
-(testnet only, in the local `stellar` CLI keystore, ~9997 XLM). Record:
+(testnet only, in the local `stellar` CLI keystore). Record:
 `corridor-contracts/deployments/testnet.json`. Smoke-verified `register →
-enter → is_cleared == true`, replay rejected. `scripts/demo.sh` is Option B;
-`scripts/deploy_testnet.sh` was already root-free. The demo corridor id is
+enter → is_cleared == true`, replay rejected #12. The demo corridor id is
 `0x…04`, min_tier 2, min_cred_epoch 1, one accepted issuer (`0x…07`).
-`corridor-sdk/src/networks.ts` `TESTNET` and `web/src/config.ts` point here —
-update all three together on the next redeploy.
+**Four places carry the addresses — update together on a redeploy:**
+`deployments/testnet.json`, `corridor-sdk/src/networks.ts`,
+`corridor/web/src/config.ts`, and the doc tables here + in each README.
 
 ---
 

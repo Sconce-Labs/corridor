@@ -103,8 +103,8 @@ Record: [`corridor-contracts/deployments/testnet.json`](https://github.com/Sconc
 
 | Contract | Address |
 |----------|---------|
-| `corridor_registry` | [`CAV6DMVC…B65`](https://stellar.expert/explorer/testnet/contract/CAV6DMVCBOU5DGQVFSPU2UIF62LNFW7PWAGC7HCPHVIUO6SWRPSX3B65) |
-| `corridor_attestation` | [`CD76SRVQ…XK5`](https://stellar.expert/explorer/testnet/contract/CD76SRVQS6QSDFL2DYWGPK2JGWQPZO4NBFOGRDR5UWLGCABLBONNUXK5) |
+| `corridor_registry` | [`CDGMQ24E…XJ6`](https://stellar.expert/explorer/testnet/contract/CDGMQ24E6OIBZB3EKJN5TUA5POYE6D5FNBL2II6SRLTYF32TE4HIEXJ6) |
+| `corridor_attestation` | [`CCHWKVRC…L4K`](https://stellar.expert/explorer/testnet/contract/CCHWKVRCEKPJHEXREP5SCZ4TEKNBFYEFYA2VR3SET5AMG4WOC76LDL4K) |
 | `verifier_mock` (M3 placeholder) | [`CBN7N7AT…K46Y`](https://stellar.expert/explorer/testnet/contract/CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y) |
 
 ---

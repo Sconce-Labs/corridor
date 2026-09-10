@@ -1,9 +1,0 @@
-[package]
-name = "corridor_eligibility"
-type = "bin"
-authors = ["Sconce Labs"]
-compiler_version = ">=1.0.0"
-
-[dependencies]
-# Poseidon2 hashing over the BN254 field, matching the Soroban host function.
-poseidon = { tag = "v0.1.0", git = "https://github.com/noir-lang/poseidon" }

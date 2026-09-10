@@ -27,7 +27,7 @@ the relayer, and a pilot. Milestones are sized to map onto
 ### M1 — Stellar core on testnet  ·  ✅ done (2026-09-10)
 - ✅ `cargo test --workspace` — 14/14 green.
 - ✅ Deployed `verifier_mock`, `corridor_registry`, `corridor_attestation` to
-  testnet (addresses in `README.md` + `stellar/deployments/testnet.json`).
+  testnet (addresses in `README.md` + `corridor-contracts/deployments/testnet.json`).
 - ✅ End-to-end verified on testnet: `register` → `post_root` → `enter` →
   `is_cleared == true`; replay rejected with `NullifierUsed`.
 - ⏳ Remaining: wire the CI `stellar` job on a real push; `.cargo/config.toml`
@@ -38,7 +38,7 @@ the relayer, and a pilot. Milestones are sized to map onto
 - Pin the `poseidon` dependency; write a cross-implementation test proving the
   Noir Poseidon2 output equals Soroban's `poseidon2_permutation` for the same
   input. **Correctness gate.**
-- A witness builder (TS, in `packages/`) that takes credential material + a
+- A witness builder (TS, in `corridor-sdk`) that takes credential material + a
   corridor policy and emits `Prover.toml` / the raw witness.
 - Real Merkle fixtures (a small tree with known leaves and paths).
 - **Done when:** `nargo execute` + `bb prove` + `bb verify` succeed on a
@@ -47,7 +47,7 @@ the relayer, and a pilot. Milestones are sized to map onto
 
 ### M3 — Real verifier on Stellar
 - Vendor / adapt `indextree/ultrahonk_soroban_contract` as
-  `stellar/contracts/ultrahonk_verifier` implementing the `Verifier` interface.
+  `corridor-contracts/contracts/ultrahonk_verifier` implementing the `Verifier` interface.
 - Generate the VK from the M2 circuit; deploy the verifier with it; set
   `vk_hash` on a test policy.
 - End-to-end: M2 proof → `corridor_attestation.enter()` on testnet → pass
@@ -76,12 +76,12 @@ the relayer, and a pilot. Milestones are sized to map onto
   within one poll interval, with no manual step.
 
 ### M6 — SDK + apps
-- `packages/verify` — `@corridor/verify`: policy fetch, witness build, proof
+- `corridor-sdk` (`@corridor/verify`): policy fetch, witness build, proof
   request (delegates proving to a local prover or the wallet), `enter` submit
   via a **fee-sponsored relayer** (holder's account stays unlinked), and
-  `isCleared`. Mirrors the `zk-payroll-sdk` monorepo layout.
-- `packages/issuer` — CLI for an issuer: KYC-result in → commitment + Midnight
-  `issueCredential` call.
+  `isCleared`. Flesh out the skeleton that's already there.
+- Issuer CLI (in `corridor-sdk` or its own repo): KYC-result in → commitment +
+  Midnight `issueCredential` call.
 - Frontend rewrite (`src/`):
   - **Holder app** — hold a credential, pick a corridor, generate + submit a
     proof, see the pass.

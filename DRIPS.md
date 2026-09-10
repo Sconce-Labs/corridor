@@ -21,24 +21,28 @@ they count in the next cycle.
 
 | Area | Skills | Good first issues |
 |------|--------|-------------------|
-| `stellar/` | Rust, `soroban-sdk` | payout-push mode, event schema, fuzz the public-input decoder, gas benchmarking |
-| `circuits/` | Noir, ZK | Merkle fixtures + witness builder, Poseidon2 conformance test, indexed-Merkle-tree revocation |
-| `contracts/` | Compact / Midnight | get `corridor.compact` compiling, simulator tests, Preprod deploy script |
-| `relayer/` | TS / Rust services | build the root-sync service (M5), multi-relayer quorum |
-| `packages/` | TypeScript | `@corridor/verify` SDK, issuer CLI |
-| `src/` | React / TS | holder app, operator console (M6) |
-| docs | writing | keep `ARCHITECTURE.md` honest, threat model, USAGE guide |
+| Repo | Skills | Good first issues |
+|------|--------|-------------------|
+| **corridor-contracts** | Rust, `soroban-sdk` | payout-push mode, event schema, fuzz the public-input decoder, gas benchmarking |
+| **corridor-circuits** | Noir, ZK | Merkle fixtures + witness builder, Poseidon2 conformance test, indexed-Merkle-tree revocation |
+| **corridor** (`contracts/`) | Compact / Midnight | get `corridor.compact` compiling, simulator tests, Preprod deploy script |
+| corridor-relayer _(tbd)_ | TS / Rust services | build the root-sync service (M5), multi-relayer quorum |
+| **corridor-sdk** | TypeScript | flesh out `@corridor/verify`, issuer CLI |
+| **corridor** (`src/`) | React / TS | holder app, operator console (M6) |
+| **corridor** (docs) | writing | keep `ARCHITECTURE.md` honest, threat model, USAGE guide |
 
-Each milestone in [`ROADMAP.md`](./ROADMAP.md) is decomposed into issues in the
-tracker. Start with anything tagged `milestone: M1` or `milestone: M2`.
+Each milestone in [`ROADMAP.md`](./ROADMAP.md) is decomposed into issues in
+[`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md) — open each in the repo it
+belongs to. Start with anything tagged `milestone: M1` or `milestone: M2`.
 
 ## Ground rules
 
 - One issue per PR. Keep diffs reviewable.
-- `stellar/`: `cargo test --workspace` must pass; add tests for new behaviour.
-- `circuits/`: `nargo test` must pass; if you touch the public-input layout,
-  update `corridor_types` `PI_*` in the **same** PR.
-- Don't weaken a trust assumption without updating `ARCHITECTURE.md` §6.
+- **corridor-contracts**: `cargo test --workspace` + `cargo fmt` must pass.
+- **corridor-circuits**: `nargo test` must pass; if you touch the public-input
+  layout, update `corridor-contracts/ABI.md` and open matching PRs on the other
+  two repos.
+- Don't weaken a trust assumption without updating `corridor/ARCHITECTURE.md` §6.
 - Conventional commits (`feat:`, `fix:`, `test:`, `docs:`, `chore:`).
 - Apache-2.0; by contributing you agree your work is licensed under it.
 

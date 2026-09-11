@@ -4,7 +4,7 @@
 // parameters, no SDK imports — keeps the module unit-testable from the
 // create-mn-app workspace (which doesn't install @midnight-ntwrk/* packages).
 //
-// Why: without persistence, every `npm run deploy` / `npm run cli` rebuilds
+// Why: without persistence, every `npm run midnight:deploy` / `midnight:issuer` rebuilds
 // each child wallet from seed and re-syncs against the chain. On public
 // networks (preview, preprod) that's minutes per run — and painful on retries
 // after a transient failure. The SDK exposes serializeState() and restore()

@@ -1,32 +1,24 @@
 /**
- * Deploy the Corridor counter contract to a Midnight network (undeployed by default; use --network preview|preprod for public networks).
+ * Deploy `corridor.compact` — the Corridor **issuer registry** (Option B) — to a
+ * Midnight network. `--network preview|preprod` for the public testnets;
+ * defaults to a local `undeployed` devnet.
  *
- * Non-interactive: scaffold → npm run setup runs straight through.
- * No readline prompts, no .midnight-seed file.
+ * The contract holds the licensed-issuer set + each issuer's credential epoch
+ * (the bulk-revocation dial corridor operators mirror into their Stellar
+ * policy). It stores no holder data. Non-interactive.
  */
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import { resolveNetwork, getOrCreateWallet, formatWalletBackupNotice, recordDeployment } from './network';
-import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createWallet, persistWalletState, unshieldedToken } from './wallet';
 import { WebSocket } from 'ws';
 import * as Rx from 'rxjs';
 
-// Midnight SDK imports
 import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
-import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
-import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
-import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
-import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
-import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
+import { createProviders, loadContract, PRIVATE_STATE_ID } from './providers';
 
 // @ts-expect-error Required for wallet sync
 globalThis.WebSocket = WebSocket;
-
-// Identifier under which this contract's private state is stored. The
-// counter contract has no persisted private state (its private witness,
-// `entitlement`, is supplied per-call), so it stays empty ({}).
-const PRIVATE_STATE_ID = 'corridorPrivateState';
 
 // ─── Network configuration ─────────────────────────────────────────────────────
 //
@@ -69,72 +61,14 @@ async function waitForProofServer(maxAttempts = 60, delayMs = 2000): Promise<boo
   return false;
 }
 
-// ─── Compiled contract loading ─────────────────────────────────────────────────
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const zkConfigPath = path.resolve(__dirname, '..', 'contracts', 'managed', 'counter');
-const contractPath = path.join(zkConfigPath, 'contract', 'index.js');
-
-if (!fs.existsSync(contractPath)) {
-  console.error('\n❌ Contract not compiled! Run: npm run compile\n');
-  process.exit(1);
-}
-
-const Counter = await import(pathToFileURL(contractPath).href);
-
-const compiledContract = CompiledContract.make('counter', Counter.Contract).pipe(
-  CompiledContract.withVacantWitnesses,
-  CompiledContract.withCompiledFileAssets(zkConfigPath),
-);
-
-// ─── Providers ─────────────────────────────────────────────────────────────────
-
-async function createProviders(walletCtx: WalletContext) {
-  // The SDK requires the private-state password to be at least 16 characters.
-  // The default below is a placeholder for local devnet only — set a strong
-  // password via PRIVATE_STATE_PASSWORD when you move to a non-local target.
-  const privateStatePassword = process.env.PRIVATE_STATE_PASSWORD?.trim() || 'Local-Devnet-Development-Placeholder-1';
-
-  const walletProvider = {
-    // In Midnight.js 4.1.x the WalletProvider interface returns the key objects
-    // (CoinPublicKey / EncPublicKey) directly — no longer hex strings.
-    getCoinPublicKey: () => walletCtx.shieldedSecretKeys.coinPublicKey,
-    getEncryptionPublicKey: () => walletCtx.shieldedSecretKeys.encryptionPublicKey,
-    async balanceTx(tx: any, ttl?: Date) {
-      // balanceUnboundTransaction -> finalizeRecipe is the complete balancing
-      // path in wallet-sdk 1.x; the earlier explicit signRecipe step is gone.
-      const recipe = await walletCtx.wallet.balanceUnboundTransaction(
-        tx,
-        { shieldedSecretKeys: walletCtx.shieldedSecretKeys, dustSecretKey: walletCtx.dustSecretKey },
-        { ttl: ttl ?? new Date(Date.now() + 30 * 60 * 1000) },
-      );
-      return walletCtx.wallet.finalizeRecipe(recipe);
-    },
-    submitTx: (tx: any) => walletCtx.wallet.submitTransaction(tx) as any,
-  };
-
-  const zkConfigProvider = new NodeZkConfigProvider(zkConfigPath);
-  const accountId = walletCtx.unshieldedKeystore.getBech32Address().toString();
-
-  return {
-    privateStateProvider: levelPrivateStateProvider({
-      privateStateStoreName: 'corridor-state',
-      accountId,
-      privateStoragePasswordProvider: () => privateStatePassword,
-    }),
-    publicDataProvider: indexerPublicDataProvider(networkConfig.indexer, networkConfig.indexerWS),
-    zkConfigProvider,
-    proofProvider: httpClientProofProvider(networkConfig.proofServer, zkConfigProvider),
-    walletProvider,
-    midnightProvider: walletProvider,
-  };
-}
+// Compiled contract + providers live in ./providers (shared with issuer.ts).
+const { compiled: compiledContract } = await loadContract();
 
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
   console.log('\n╔══════════════════════════════════════════════════════════════╗');
-  console.log(`║  Deploy Corridor counter to ${network}`);
+  console.log(`║  Deploy Corridor issuer registry to ${network}`);
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
   const seed = SEED;
@@ -265,7 +199,7 @@ async function main() {
   process.stdout.write('\r  Proof server ready!                                 \n');
 
   console.log('  Setting up providers...');
-  const providers = await createProviders(walletCtx);
+  const providers = createProviders(walletCtx, networkConfig);
 
   // The wallet's reported DUST balance is a *time-projection* of what its
   // registered NIGHT will eventually generate; the tx-builder spends only
@@ -290,9 +224,9 @@ async function main() {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       // Midnight.js 4.1.x supplies private state via privateStateId +
-      // initialPrivateState (empty here — the counter contract has no
+      // initialPrivateState (empty — the registry has no
       // persisted witnesses). args is the contract constructor's arguments:
-      // empty for the counter's no-arg constructor. (Statically-typed
+      // empty for the registry contract's implicit no-arg constructor. (Statically-typed
       // contracts can omit args entirely; this script loads the contract
       // dynamically, so the conditional args type widens to any[] and an
       // explicit [] is required.)
@@ -363,13 +297,42 @@ async function main() {
   console.log('  ✅ Contract deployed successfully!\n');
   console.log(`  Contract Address: ${contractAddress}\n`);
 
+  // Claim admin in the same run, before anyone can front-run `initAdmin`
+  // (audit R2-L7: the contract's `initAdmin` is first-caller-wins). The admin
+  // control secret is CORRIDOR_ADMIN_SECRET, or a deterministic value derived
+  // from this wallet's seed.
+  console.log('─── Claim admin (initAdmin) ────────────────────────────────────\n');
+  const adminSecret = adminSecretBytes(seed);
+  try {
+    const res = await deployed.callTx.initAdmin(adminSecret);
+    console.log(`  ✅ initAdmin submitted (tx ${res?.public?.txHash ?? 'ok'})`);
+    console.log('  Store CORRIDOR_ADMIN_SECRET securely — it is the only key that can register issuers.\n');
+  } catch (err: any) {
+    console.error(`  ⚠  initAdmin failed: ${err?.message ?? err}`);
+    console.error('  Run `npm run midnight:issuer -- init` manually before anyone else does.\n');
+  }
+
   recordDeployment(network, contractAddress, address.toString());
   console.log('  Saved to .midnight-state.json\n');
 
   await persistWalletState(network, walletCtx);
   await walletCtx.wallet.stop();
   console.log('─── Deployment complete ────────────────────────────────────────\n');
-  console.log('  Next: npm run cli\n');
+  console.log('  Next: npm run midnight:issuer -- register <issuerId> <ctlHash>\n');
+}
+
+/** 32-byte admin control secret: env override, else BLAKE2b-ish of the seed. */
+function adminSecretBytes(seed: string): Uint8Array {
+  const env = process.env.CORRIDOR_ADMIN_SECRET?.trim();
+  if (env) {
+    const hex = env.replace(/^0x/, '').padStart(64, '0');
+    return Uint8Array.from(Buffer.from(hex, 'hex'));
+  }
+  // deterministic from the seed so a re-run reproduces the same admin
+  const h = createHash('sha256');
+  h.update('corridor-issuer-registry-admin/');
+  h.update(seed);
+  return Uint8Array.from(h.digest());
 }
 
 main().catch((err) => {

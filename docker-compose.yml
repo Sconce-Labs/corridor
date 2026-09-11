@@ -1,4 +1,6 @@
-# Local Midnight devnet for the Corridor counter
+# Local Midnight devnet for the Corridor issuer registry (corridor.compact).
+# For a Preprod/Preview deploy only proof-server runs locally (node + indexer
+# are the public endpoints in midnight/network.ts).
 # LOCAL DEVELOPMENT ONLY — do not expose these ports to a public network.
 # Tear down with: docker compose down -v
 name: corridor-devnet

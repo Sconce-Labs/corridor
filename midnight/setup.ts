@@ -1,5 +1,5 @@
 // Orchestrator for `npm run setup`. Replaces the prior package.json chain
-// `docker compose up -d --wait && npm run compile && npm run deploy` so
+// `docker compose up -d --wait && npm run compile && npm run midnight:deploy` so
 // we can branch on --network and forward it to deploy.
 import { spawnSync } from 'node:child_process';
 import { resolveNetwork, setActiveNetwork, parseNetworkFlag } from './network';
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   if (flag) setActiveNetwork(flag);
   const { network, config } = resolveNetwork({ argv });
 
-  process.stdout.write(`\n→ Setting up Corridor counter on network: ${network}\n\n`);
+  process.stdout.write(`\n→ Setting up the Corridor issuer registry on network: ${network}\n\n`);
 
   // 1. Bring up only the services this network needs.
   run('docker', ['compose', 'up', '-d', '--wait', ...config.composeServices]);
@@ -28,7 +28,7 @@ async function main(): Promise<void> {
 
   // 3. Deploy. Forward --network so deploy.ts sees the same network.
   const deployArgs = network === 'undeployed' ? [] : ['--', '--network', network];
-  run('npm', ['run', 'deploy', ...deployArgs]);
+  run("npm", ["run", "midnight:deploy", ...deployArgs]);
 }
 
 main().catch((e) => {

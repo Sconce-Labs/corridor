@@ -36,10 +36,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
+          cache: npm
       - uses: midnightntwrk/setup-compact-action@v1
-      - name: Compile credential registry
+      - name: Compile the issuer registry
         run: compact compile contracts/corridor.compact contracts/managed/corridor
+      - name: Verify the compiled ZK keyset
+        run: |
+          set -e
+          test -f contracts/managed/corridor/contract/index.js
+          test -f contracts/managed/corridor/contract/index.d.ts
+          node -e '
+            const info = require("./contracts/managed/corridor/compiler/contract-info.json");
+            const want = ["initAdmin","registerIssuer","deregisterIssuer","bumpEpoch","adminBumpEpoch","reportAttestations"];
+            const got = info.circuits.map(c => c.name ?? c);
+            for (const c of want) if (!got.includes(c)) { console.error("missing circuit:", c); process.exit(1); }
+            const fs = require("fs");
+            for (const c of want) {
+              for (const ext of ["prover","verifier"])
+                if (!fs.existsSync(`contracts/managed/corridor/keys/${c}.${ext}`)) { console.error("missing key:", c, ext); process.exit(1); }
+            }
+            console.log("6 circuits, 12 keys — OK");
+          '
+      - name: Typecheck the deploy tooling
+        run: npm ci && npm run typecheck
 
   links:
     name: Doc links

@@ -1,10 +1,11 @@
 /**
- * Private state and witnesses for the Corridor counter contract.
+ * Private state and witnesses for `corridor.compact` (the issuer registry).
  *
- * The contract has no persisted private state on-chain: its private witness
- * (`entitlement`) is supplied per-call as a circuit input and is never
- * written to the ledger. The `witnesses` object therefore stays empty.
+ * The contract persists no private state on-chain. The admin key and each
+ * issuer's control secret are the only "private" inputs, and they are supplied
+ * per circuit call as witnesses (`adminSk`, `issuerCtl`) — never written to the
+ * ledger. The `witnesses` object therefore stays empty.
  */
-export type CounterPrivateState = Record<string, never>;
+export type IssuerRegistryPrivateState = Record<string, never>;
 
 export const witnesses = {};

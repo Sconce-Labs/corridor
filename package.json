@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Corridor — hub repo: the Midnight credential contract + docs. Other components live in Sconce-Labs/corridor-{contracts,circuits,sdk,relayer}.",
+  "description": "Corridor — hub repo: docs, the web app, and the Midnight issuer-registry contract. Other components live in Sconce-Labs/corridor-{contracts,circuits,sdk}.",
   "license": "Apache-2.0",
   "scripts": {
     "compile": "compact compile contracts/corridor.compact contracts/managed/corridor",
@@ -11,7 +11,9 @@
     "proof-server:stop": "docker compose down",
     "midnight:deploy": "tsx midnight/deploy.ts",
     "midnight:setup": "tsx midnight/setup.ts",
-    "midnight:cli": "tsx midnight/cli.ts"
+    "midnight:issuer": "tsx midnight/issuer.ts",
+    "midnight:read": "tsx midnight/read.ts",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",

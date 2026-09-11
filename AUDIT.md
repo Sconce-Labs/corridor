@@ -446,7 +446,7 @@ independently.
 | R2-M5 | In-circuit ECIES to `auditor_pubkey` (real auditor opening) | ⏳ M7 |
 | R2-M3 / R2-M4 / R2-M8 | verifier-swap delay · canonical-VK registry · global pause | ⏳ M3–M5 window, with the real verifier |
 | R2-L5 | Content-Security-Policy header in vercel.json | ✅ **done** — strict CSP with self, Soroban testnet RPC, inline styles, frame-ancestors none (corridor#8) |
-| R2-L6 | React ErrorBoundary in web/src/App.tsx | ✅ **done** — accessible fallback card + reload button in `web/src/ErrorBoundary.tsx` (corridor#8) |
+| R2-L6 | React ErrorBoundary in `web/src/ErrorBoundary.tsx` | ✅ **done** — `web/src/main.tsx` wraps `<App />` with the accessible fallback card + reload button (corridor#8) |
 | R2-L7 | atomic `initAdmin` in `midnight/deploy.ts` | ✅ **done** — no first-caller-wins window |
 | R2-L1, L4, L8–L16 | hardening batch | ⏳ opportunistic (L4 typecheck-scope done — SDK + `midnight/`) |
 

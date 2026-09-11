@@ -96,8 +96,8 @@ export class ErrorBoundary extends Component<
             </div>
             <h2 id="error-boundary-title">Something went wrong</h2>
             <p id="error-boundary-desc">
-              A client error occurred while rendering the page. This is usually
-              caused by unexpected contract simulation data or temporary network issues.
+              A client-side component failed while rendering the page. Reload
+              the application to try again.
             </p>
             <pre
               className="error-details"

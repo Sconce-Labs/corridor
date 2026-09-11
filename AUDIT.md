@@ -390,8 +390,8 @@ independently.
 | R2-L2 | `assertStrongSecret` is **never called** by `buildWitness` or `issueCredential` — the H5 mitigation is opt-in and nothing opts in. Wire it into `buildWitness(cred, …)`. |
 | R2-L3 | Just-expired credential passes within `now_tolerance_secs` (holder sets `pi.now` as old as the window allows, `expiry > pi.now` still holds). Round-1 M7; documented as acceptable. |
 | R2-L4 | Two diverging Soroban read clients — `corridor-sdk/src/soroban.ts` (`SorobanReader`, hardcoded `SIM_SOURCE` strkey that looks 1 char short) vs `corridor/web/src/corridor.ts` (uses `Keypair.random()`). A `CorridorPolicy` shape change needs editing both. Consider publishing the SDK so `web/` can depend on it. |
-| R2-L5 | Web app sets `X-Content-Type-Options` / `Referrer-Policy` / `Permissions-Policy` but **no `Content-Security-Policy`**. Everything is bundled + one RPC host — a strict CSP is cheap. |
-| R2-L6 | No React error boundary in `web/src/App.tsx` — a render-time throw (unexpected `scValToNative` shape) white-screens the page. Async errors are handled. |
+| R2-L5 | ✅ **done** — Web app sets strict `Content-Security-Policy` in `vercel.json` (`default-src 'self'`, `connect-src 'self' https://soroban-testnet.stellar.org`, `img-src 'self' data:`, `style-src 'self' 'unsafe-inline'`, `base-uri 'none'`, `frame-ancestors 'none'`). |
+| R2-L6 | ✅ **done** — `web/src/ErrorBoundary.tsx` wraps `<App />` in `web/src/main.tsx` with a clean fallback card and application reload button. |
 | R2-L7 | ✅ **done** — `midnight/deploy.ts` calls `initAdmin` in the same run as the deploy, so there is no first-caller-wins window. The admin secret is `CORRIDOR_ADMIN_SECRET` or `sha256("…" + walletSeed)`. |
 | R2-L8 | `corridor.compact` has no `rotateIssuerAuth` — a leaked Midnight control secret forces `deregisterIssuer` + `registerIssuer`, losing the epoch. |
 | R2-L9 | `corridor.compact` `reportAttestations` is a self-reported, unverifiable counter — transparency theatre. Consider removing it (it's a circuit + attack surface for no real assurance). |

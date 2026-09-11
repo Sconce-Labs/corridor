@@ -187,13 +187,29 @@ enter → is_cleared == true`, replay rejected #12. The demo corridor id is
 
 ---
 
-## 7. Drips Wave — remaining owner action
+## 7. Drips Wave — owner action
 
-1. **List the repos on [drips.network](https://www.drips.network/wave/stellar)**
-   — at least `corridor` and `corridor-contracts`.
-2. **Open the issues** from [`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md) in
-   the repo each belongs to. The label set already exists in every repo.
-   `corridor-relayer` issues are void — fold any into the M6 tx-relayer.
+The engineering side is ready: 4 active repos, CI green, ~25 scoped
+`drips`-labelled issues ([`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md)), org
+profile, deployed on testnet. Remaining is procedural:
+
+1. **Complete KYC/KYB** on the Drips Wave account — it is a prerequisite for any
+   reward payout ([Wave terms](https://docs.drips.network/wave/terms-and-rules/)).
+2. **Install the Drips Wave GitHub App** on the `Sconce-Labs` org, sync, and
+   **apply the repos** when the next Stellar Wave opens for scoping (monthly;
+   Wave 8 was Aug 24–31 2026). Cap is 5 repos per org — apply `corridor`,
+   `corridor-contracts`, `corridor-circuits`, `corridor-sdk`. **Do not** apply
+   `corridor-relayer` (archived).
+3. **Positioning** — lead with *Stellar-native zkKYC / portable proof of
+   eligibility*. It's the only project of its kind on the Wave (the privacy
+   projects there — Wraith, Sub-Rosa — do payment-graph privacy and sealed
+   markets, not eligibility). It also maps directly onto Stellar's own stated
+   ZK priorities (their dev blog names "zkKYC" as a flagship use case).
+4. **Be precise about the mock verifier** in the application — "policy binding
+   live on testnet; UltraHonk verification is M3." The Wave funds closing that
+   gap (issue `corridor-contracts#1`); overselling it is the one avoidable risk.
+5. Midnight is a *small, real* part of the story (a public issuer registry that
+   compiles in CI, M4 for Preprod) — mention it, don't lead with it.
 
 ---
 

@@ -7,9 +7,9 @@ docs, and the Midnight issuer-registry contract.
 | Repo | Contents | Language | Status |
 |------|----------|----------|--------|
 | **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | `ARCHITECTURE.md`, `PROPOSAL.md`, `ROADMAP.md`, `HANDOFF.md`, `DRIPS.md`, `docs/`, `contracts/corridor.compact` (Midnight issuer registry), `midnight/` (wallet tooling) | Compact, TS | active |
-| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace: `corridor_registry`, `corridor_attestation`, `ultrahonk_verifier`, `verifier_mock`, `corridor_types`, `poseidon_conformance`. **Owns the public-input ABI** (`ABI.md`). | Rust / soroban-sdk 25 | ✅ 25 tests (Option B); testnet redeploy pending (M2) |
-| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit (Grumpkin Schnorr) | Noir | ✅ 18 tests, signed fixture, `nargo execute` |
-| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` client SDK + Grumpkin signer (`issueCredential`) | TypeScript | ✅ 23 tests; `getPolicy`/`isCleared`/`buildWitness` real; prover+tx-relayer clients pending |
+| **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace: `corridor_registry`, `corridor_attestation`, `ultrahonk_verifier`, `verifier_mock`, `corridor_types`, `poseidon_conformance`. **Owns the public-input ABI** (`ABI.md`). | Rust / soroban-sdk 25 | ✅ 33 tests; deployed + smoke-verified on testnet (Option B) |
+| **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit (Grumpkin Schnorr) | Noir | ✅ 20 tests, signed fixture, `nargo execute` |
+| **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` client SDK + Grumpkin signer (`issueCredential`) | TypeScript | ✅ 25 tests; reads + `buildWitness` + 3-step issuance real; prover+tx-relayer clients pending |
 | **[Sconce-Labs/corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)** | ~~Midnight→Stellar root-sync service~~ | TypeScript | 🗄️ **archived** — Option B removed root sync |
 
 ## The ABI seam

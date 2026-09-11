@@ -19,19 +19,19 @@ they count in the next cycle.
 
 ## Where to start
 
-| Repo | Skills | Good first issues |
-|------|--------|-------------------|
-| **corridor-contracts** | Rust, `soroban-sdk` | testnet redeploy (M2), payout-push mode, fuzz the public-input decoder, gas benchmarking |
-| **corridor-circuits** | Noir, ZK | pin `bb` in CI, targeted-revocation IMT (deferred), circuit review |
-| **corridor** (`contracts/`) | Compact / Midnight | `corridor.compact` simulator tests, Preprod deploy script |
-| **corridor-sdk** | TypeScript | prover client, tx-relayer client, issuer CLI (KYC → sign, CSPRNG enforcement) |
+| Repo | Skills | Where to look |
+|------|--------|---------------|
+| **corridor-contracts** | Rust, `soroban-sdk` | the M3 verifier chain (#1, #2, #3), the audit-R2 hardening batch (#11–#14), payout-push, nullifier archival |
+| **corridor-circuits** | Noir, ZK | green the `bb` CI job (#1, `good first issue`), in-circuit ECIES (#3), targeted-revocation spike (#2) |
+| **corridor** (`contracts/` + `midnight/`) | Compact / Midnight | `corridor.compact` simulator tests (#2), Preprod deploy + `midnight/` trim (#3) |
+| **corridor-sdk** | TypeScript | local prover (#1), tx-relayer client (#2), issuer CLI (#3), revocation-propagation helper (#10) |
+| **corridor** (`web/`) | React / TS | CSP + error boundary (#8, `good first issue`), operator dashboard (#9), holder flow (#5), operator console (#6) |
+| **corridor** (docs) | writing | threat model (#7); keep `ARCHITECTURE.md` §6 and `AUDIT.md` honest |
 | tx-relayer _(new, M6)_ | TS / Rust services | build the fee-sponsoring `enter` relayer (`docs/TX_RELAYER.md`) |
-| **corridor** (frontend, M6) | React / TS | holder app, operator console |
-| **corridor** (docs) | writing | keep `ARCHITECTURE.md` honest, threat model |
 
-Each milestone in [`ROADMAP.md`](./ROADMAP.md) is decomposed into issues in
-[`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md) — open each in the repo it
-belongs to. Start with anything tagged `milestone: M1` or `milestone: M2`.
+The full issue map — number, milestone, complexity — is in
+[`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md). Start with anything tagged
+`good first issue`; the M3 verifier work is the critical path.
 
 ## Ground rules
 

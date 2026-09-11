@@ -89,8 +89,8 @@ Full breakdown in [`COMPONENTS.md`](./COMPONENTS.md).
 | Layer | State |
 |-------|-------|
 | Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | ✅ 30 host tests; **deployed + smoke-verified on Stellar testnet (Option B ABI)** |
-| Noir `corridor_eligibility` circuit | ✅ 18 tests, real Grumpkin Schnorr verification, `nargo execute` on a signed fixture (Noir 1.0.0-beta.26) |
-| `@corridor/verify` SDK | ✅ 23 tests — Soroban reads, `buildWitness`, `verifyWitnessLocally`, `issueCredential`, Grumpkin signer |
+| Noir `corridor_eligibility` circuit | ✅ 20 tests, real Grumpkin Schnorr verification, `nargo execute` on a signed fixture (Noir 1.0.0-beta.26) |
+| `@corridor/verify` SDK | ✅ 25 tests — Soroban reads, `buildWitness`, `verifyWitnessLocally`, 3-step issuance, Grumpkin signer |
 | Poseidon2 + Schnorr conformance (circuit ⇄ SDK ⇄ Soroban) | ✅ pinned vectors match; `nargo execute` on the SDK-signed fixture is the end-to-end check |
 | Web app (`web/`) | ✅ public site + live testnet reads + operator clearance checker → [corridor-pink.vercel.app](https://corridor-pink.vercel.app) |
 | Real on-chain UltraHonk verifier | ⏳ **M3** — a mock stands in |

@@ -20,10 +20,10 @@ archived, all with CI:
 
 | Layer | Built | Not built |
 |-------|-------|-----------|
-| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (`register`/`update_policy`/`set_min_cred_epoch`/two-step admin/events), attestation (`enter`/`is_cleared`/nullifier ledger/TTL/events), mock verifier, `ultrahonk_verifier` skeleton, typed ABI, **25 host tests**, **deployed + smoke-verified on testnet (Option B)**, Poseidon2 conformance | real UltraHonk verification (M3), payout-push mode, gas benchmarks |
-| Noir circuit ([corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)) | `eligibility`/`tags`/`conformance` modules, Grumpkin **Schnorr signature verification**, `nargo check`+`test` (18 tests, all failure modes), `nargo execute` on a real signed fixture, gate-count in CI (73 ACIR opcodes), best-effort `bb prove/verify` | pinned `bb` once beta.26 gets a published mapping |
+| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (`register`/`update_policy`/`set_min_cred_epoch`/two-step admin/events), attestation (`enter`/`is_cleared`/nullifier ledger/TTL/events), mock verifier, `ultrahonk_verifier` skeleton, typed ABI, **33 host tests**, **deployed + smoke-verified on testnet (Option B)**, Poseidon2 conformance | real UltraHonk verification (M3), payout-push mode, gas benchmarks |
+| Noir circuit ([corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)) | `eligibility`/`tags`/`conformance` modules, Grumpkin **Schnorr signature verification**, `nargo check`+`test` (20 tests, all failure modes), `nargo execute` on a real signed fixture, gate-count in CI (73 ACIR opcodes), best-effort `bb prove/verify` | pinned `bb` once beta.26 gets a published mapping |
 | Midnight / Compact (this repo `contracts/`) | **issuer registry** (`registerIssuer`/`bumpEpoch`/`reportAttestations`), issuer-auth via control-secret hash, **compiles in CI (6 circuits)** | simulator tests, Preprod deploy (M4) |
-| SDK ([corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)) | `getPolicy`/`isCleared`/`passes`/`passRecord` (live), `buildWitness`, `verifyWitnessLocally`, **Grumpkin signer + `issueCredential`**, `makeFixture`, 23 tests, examples | `requestProof`/`enter` (need M3 + tx-relayer), issuer CLI |
+| SDK ([corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)) | `getPolicy`/`isCleared`/`passes`/`passRecord` (live), `buildWitness`, `verifyWitnessLocally`, **Grumpkin signer + `issueCredential`**, `makeFixture`, 3-step issuance, 25 tests, examples | `requestProof`/`enter` (need M3 + tx-relayer), issuer CLI |
 | Tx-relayer (spec: [`docs/TX_RELAYER.md`](./docs/TX_RELAYER.md)) | spec only | the service (M6) |
 | ~~Root-sync relayer~~ ([corridor-relayer](https://github.com/Sconce-Labs/corridor-relayer)) | 🗄️ **archived** — Option B has no roots to sync | — |
 
@@ -41,13 +41,13 @@ archived, all with CI:
 
 ### M2 — Option B circuit + testnet redeploy  ·  ✅ done (2026-09-10)
 - ✅ Circuit rewritten for issuer-signed statements: Grumpkin **Schnorr
-  verification**, no Merkle path. 18 `nargo test`, `nargo execute` solves a real
+  verification**, no Merkle path. 20 `nargo test`, `nargo execute` solves a real
   signed fixture. 73 ACIR opcodes (was ~3200).
 - ✅ SDK Grumpkin signer (`schnorr.ts`) matches `noir-lang/schnorr` v0.4.0's
   pinned vector; `gen-circuit-fixture.ts` emits the circuit fixture and CI
   proves SDK ⇄ circuit agree.
 - ✅ Contracts rebuilt for the 9-input Option B ABI (`min_cred_epoch` replaces
-  the two roots); 25 host tests.
+  the two roots); 33 host tests.
 - ✅ Poseidon2 conformance still asserted circuit ⇄ SDK ⇄ Soroban.
 - ✅ **Redeployed to testnet** (`deployments/testnet.json`); smoke-verified
   `register → enter` (PassGranted) `→ is_cleared == true`, replay rejected.
@@ -79,16 +79,17 @@ archived, all with CI:
   corridor operator can mirror that epoch into `set_min_cred_epoch`.
 
 ### M5 — Issuer SDK & tooling
-- Issuer CLI (in `corridor-sdk` or its own repo): KYC-result in → `issueCredential`
-  (Grumpkin sign) → hand the holder `{ tier, expiry, cred_epoch, salt, pubkey,
-  sig }`.
-- **Enforce a CSPRNG for `holder_secret`** end to end (audit H5) — the holder
-  supplies `holder_binding`; tooling must generate the secret with
-  `randomSecret()` and refuse weak input (`assertStrongSecret`).
+- ✅ SDK 3-step issuance — `prepareCredentialRequest` (holder) → `issueCredential`
+  (issuer, sees only `holderBinding`) → `assembleCredential` (holder).
+  `buildWitness` enforces `assertStrongSecret` (audit R2-H2 / R2-L2).
+- Issuer CLI wrapping that flow: KYC-result in → sign → deliver the statement.
+- Revocation-propagation helper (audit R2-M1): diff each accepted issuer's
+  Midnight `issuerEpoch` against the corridor's Stellar `min_cred_epoch` and warn.
 - Issuer key management: generation, rotation, the Midnight `bumpEpoch` call on
   rotation/compromise.
 - **Done when:** an issuer can run KYC → sign → deliver a credential a holder
-  can use, with no hand-crafted values.
+  can use, with no hand-crafted values, and an operator gets alerted when a
+  revocation hasn't propagated.
 
 ### M6 — Tx-relayer + apps
 - ✅ `corridor-sdk` reads (`getPolicy` / `isCleared` / `passes`) and

@@ -328,7 +328,7 @@ Sconce-Labs/corridor            ← hub: this file, README, PROPOSAL, ROADMAP,
 │                                  HANDOFF, DRIPS, docs/
 ├── contracts/corridor.compact  ← Midnight issuer registry
 ├── web/                        ← public site + operator clearance checker (Vite/React → Vercel)
-└── midnight/                   ← Midnight wallet + deploy tooling (predates Option B)
+└── midnight/                   ← deploy + issuer-ops tooling for corridor.compact (Option B)
 
 Sconce-Labs/corridor-contracts  ← Soroban workspace (Rust); owns ABI.md
 Sconce-Labs/corridor-circuits   ← Noir corridor_eligibility circuit

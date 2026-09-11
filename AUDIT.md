@@ -392,7 +392,7 @@ independently.
 | R2-L4 | Two diverging Soroban read clients — `corridor-sdk/src/soroban.ts` (`SorobanReader`, hardcoded `SIM_SOURCE` strkey that looks 1 char short) vs `corridor/web/src/corridor.ts` (uses `Keypair.random()`). A `CorridorPolicy` shape change needs editing both. Consider publishing the SDK so `web/` can depend on it. |
 | R2-L5 | Web app sets `X-Content-Type-Options` / `Referrer-Policy` / `Permissions-Policy` but **no `Content-Security-Policy`**. Everything is bundled + one RPC host — a strict CSP is cheap. |
 | R2-L6 | No React error boundary in `web/src/App.tsx` — a render-time throw (unexpected `scValToNative` shape) white-screens the page. Async errors are handled. |
-| R2-L7 | `corridor.compact` `initAdmin` is first-caller-wins — the M4 deploy script must call it atomically with deploy, or someone can front-run and claim admin. |
+| R2-L7 | ✅ **done** — `midnight/deploy.ts` calls `initAdmin` in the same run as the deploy, so there is no first-caller-wins window. The admin secret is `CORRIDOR_ADMIN_SECRET` or `sha256("…" + walletSeed)`. |
 | R2-L8 | `corridor.compact` has no `rotateIssuerAuth` — a leaked Midnight control secret forces `deregisterIssuer` + `registerIssuer`, losing the epoch. |
 | R2-L9 | `corridor.compact` `reportAttestations` is a self-reported, unverifiable counter — transparency theatre. Consider removing it (it's a circuit + attack surface for no real assurance). |
 | R2-L10 | `schnorr.ts` `randScalar` = `randomBytes(32) % GRUMPKIN_Q` — modulo bias (256-bit into ~254-bit q). Negligible for a private key; use rejection sampling like `randomFieldElement` does. |
@@ -445,7 +445,8 @@ independently.
 | R2-M1 | SDK helper: diff Midnight `issuerEpoch` vs Stellar floors + warn | ⏳ M5 (issuer tooling) |
 | R2-M5 | In-circuit ECIES to `auditor_pubkey` (real auditor opening) | ⏳ M7 |
 | R2-M3 / R2-M4 / R2-M8 | verifier-swap delay · canonical-VK registry · global pause | ⏳ M3–M5 window, with the real verifier |
-| R2-L1, L4–L16 | hardening batch | ⏳ opportunistic (L4 typecheck-scope done in the SDK) |
+| R2-L7 | ✅ done — atomic `initAdmin` in `midnight/deploy.ts` |
+| R2-L1, L4–L16 | hardening batch | ⏳ opportunistic (L4 typecheck-scope done — SDK + `midnight/`; L5/L6 → corridor#8) |
 
 The **near-term batch** (R2-H1, R2-H2, R2-M6, R2-M7, R2-L2) **shipped
 2026-09-10** — one pass across circuit + SDK + contracts + docs, no ABI-layout

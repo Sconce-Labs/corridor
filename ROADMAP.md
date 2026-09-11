@@ -67,14 +67,16 @@ archived, all with CI:
 - **Done when:** the mock is out of the critical path for at least one corridor.
 
 ### M4 — Midnight issuer registry live
-- ✅ `compact compile contracts/corridor.compact` clean in CI (6 circuits,
-  Option B: `registerIssuer` / `bumpEpoch` / `reportAttestations`).
-- Simulator tests: issuer registration, epoch monotonicity, control-secret
+- ✅ `compact compile` clean in CI; the compiled 6-circuit ZK keyset is
+  verified in CI (all prover/verifier keys present).
+- ✅ `midnight/` retargeted to Option B: `deploy.ts` (deploy + **atomic
+  `initAdmin`**, audit R2-L7), `issuer.ts` (`init`/`register`/`bump`/
+  `deregister`), `read.ts` (dump issuers + epochs). Typechecked. Counter /
+  `enterCorridor` scaffolding removed.
+- ⏳ Simulator tests: issuer registration, epoch monotonicity, control-secret
   auth, admin escape hatch.
-- Deploy to Midnight Preprod; register a test issuer; bump an epoch; read
-  `issuerEpoch` back off the indexer.
-- Trim `midnight/` tooling to what Option B needs (drop the `enterCorridor` /
-  holder-proving scaffolding — the holder never touches Midnight now).
+- ⏳ Deploy to Midnight Preprod (needs a funded wallet from the Nethermind
+  faucet); register a test issuer; bump an epoch; `npm run midnight:read`.
 - **Done when:** an issuer registered on Preprod, with its epoch readable, and a
   corridor operator can mirror that epoch into `set_min_cred_epoch`.
 

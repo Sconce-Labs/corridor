@@ -94,7 +94,7 @@ Full breakdown in [`COMPONENTS.md`](./COMPONENTS.md).
 | Poseidon2 + Schnorr conformance (circuit ⇄ SDK ⇄ Soroban) | ✅ pinned vectors match; `nargo execute` on the SDK-signed fixture is the end-to-end check |
 | Web app (`web/`) | ✅ public site + live testnet reads + operator clearance checker → [corridor-pink.vercel.app](https://corridor-pink.vercel.app) |
 | Real on-chain UltraHonk verifier | ⏳ **M3** — a mock stands in |
-| Midnight `corridor.compact` issuer registry | ✅ compiles in CI (6 circuits); ⏳ simulator tests + Preprod deploy (M4) |
+| Midnight `corridor.compact` issuer registry | ✅ compiles in CI (6-circuit ZK keyset); deploy tooling Option-B-ready; ⏳ simulator tests + Preprod deploy (M4) |
 | Fee-sponsoring tx-relayer + holder/operator flows | ⏳ **M6** — [`docs/TX_RELAYER.md`](./docs/TX_RELAYER.md) |
 
 ### Deployed addresses (Stellar testnet, Option B ABI)
@@ -118,7 +118,7 @@ corridor/
 ├── contracts/
 │   └── corridor.compact           Midnight issuer registry (Compact)
 ├── web/                           the public site + operator clearance checker (Vite + React → Vercel)
-├── midnight/                      Midnight wallet + deploy tooling (predates Option B — being trimmed)
+├── midnight/                      Midnight deploy + issuer-ops tooling for corridor.compact
 ├── assets/                        brand — logo.svg, PNGs, favicon
 └── vercel.json                    builds web/ on push to main
 ```

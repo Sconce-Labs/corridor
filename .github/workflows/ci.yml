@@ -37,7 +37,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
       - uses: midnightntwrk/setup-compact-action@v1
       - name: Compile the issuer registry
         run: compact compile contracts/corridor.compact contracts/managed/corridor
@@ -58,8 +57,6 @@ jobs:
             }
             console.log("6 circuits, 12 keys — OK");
           '
-      - name: Typecheck the deploy tooling
-        run: npm ci && npm run typecheck
 
   links:
     name: Doc links

@@ -45,7 +45,7 @@ relayer allowlist, and the `corridor-relayer` repo.
 
 | Repo | Contents | State |
 |------|----------|-------|
-| **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | docs, `contracts/corridor.compact` (Midnight issuer registry), `midnight/` (wallet tooling) | active |
+| **[Sconce-Labs/corridor](https://github.com/Sconce-Labs/corridor)** (this) | docs, `contracts/corridor.compact` (Midnight issuer registry), `midnight/` (deploy + issuer-ops tooling) | active |
 | **[Sconce-Labs/corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)** | Soroban workspace; owns `ABI.md` | ✅ 33 tests + poseidon conformance; deployed + smoke-verified on testnet |
 | **[Sconce-Labs/corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)** | `corridor_eligibility` Noir circuit (Grumpkin Schnorr) | ✅ 20 tests, signed fixture, `nargo execute` |
 | **[Sconce-Labs/corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)** | `@corridor/verify` TS SDK + Grumpkin signer | ✅ 25 tests; reads + witness + 3-step issuance real |
@@ -90,12 +90,12 @@ expiry** — the issuer stops re-signing.
 |-----------|-------------|-------|------|
 | Soroban registry + attestation + mock verifier | corridor-contracts | ✅ 33 host tests; deployed + smoke-verified on testnet (Option B) | real verifier (M3) |
 | Public-input ABI (`PI_*`, 9 inputs) | corridor-contracts `crates/corridor_types` + `ABI.md` | ✅ source of truth | keep circuit + SDK in sync |
-| Noir circuit (Grumpkin Schnorr verify) | corridor-circuits | ✅ 18 `nargo test`, `nargo execute` solves a real signed fixture | pin `bb` when beta.26 gets a mapping |
+| Noir circuit (Grumpkin Schnorr verify) | corridor-circuits | ✅ 20 `nargo test`, `nargo execute` solves a real signed fixture | pin `bb` when beta.26 gets a mapping |
 | Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | — |
 | Schnorr conformance (SDK signer ⇄ circuit verifier) | sdk + circuits | ✅ pinned vector + `nargo execute` in CI | — |
 | SDK reads + `buildWitness` + `issueCredential` + signer | corridor-sdk | ✅ real, live testnet reads | `requestProof` + `enter` clients (M6) |
 | Real UltraHonk verifier | corridor-contracts | ❌ | wire `indextree/ultrahonk_soroban_contract` (M3) |
-| Midnight issuer registry | this repo `contracts/corridor.compact` | ✅ compiles in CI (6 circuits) | simulator tests + Preprod (M4) |
+| Midnight issuer registry | this repo `contracts/corridor.compact` + `midnight/` | ✅ compiles in CI to a 6-circuit keyset; deploy/issuer/read tooling Option-B-ready (`npm run typecheck`) | simulator tests + Preprod deploy (M4, corridor#3) |
 | Fee-sponsoring tx-relayer | spec `docs/TX_RELAYER.md` | ❌ | build (M6) |
 | Frontend | this repo `web/` | ✅ site + live reads + `is_cleared` checker | holder/operator flows (M6) |
 
@@ -155,10 +155,14 @@ enter → is_cleared == true`, replay rejected #12. The demo corridor id is
    Windows use WSL — `compact` there is the real tool. It needs toolchain
    ≥ 0.34 (`compact update 0.34`); the `pragma` is `language_version >= 0.24`.
 
-8. **`midnight/` tooling predates Option B.** `midnight/cli.ts` /
-   `e2e-call.ts` call an `enterCorridor` circuit that no longer exists. Under
-   Option B the holder never touches Midnight — only issuers and the admin do.
-   Trim this in M4.
+8. **`midnight/` is Option-B tooling now.** `deploy.ts` (deploy + atomic
+   `initAdmin`), `issuer.ts` (`init`/`register`/`bump`/`deregister`),
+   `read.ts` (dump issuers + epochs), `providers.ts` (shared setup). The
+   counter/`enterCorridor` scaffolding is gone. `npm run typecheck` covers it.
+   The Midnight SDK import is slow (~30s WASM init) — that's normal, not a hang.
+   `@midnight-ntwrk/compact-runtime` in `package.json` (0.16) lags the compiler
+   output (runtime 0.19), so don't `import()` the compiled `contract/index.js`
+   outside the deploy scripts until the SDK line is bumped.
 
 9. **The frontend lives in `web/`** (Vite + React + `@stellar/stellar-sdk`).
    `../vercel.json` builds it (`npm --prefix web`). It reads the live testnet

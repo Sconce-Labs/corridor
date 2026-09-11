@@ -527,6 +527,9 @@ section.band > .wrap > p.sub {
   text-align: center;
   padding: 36px 28px;
 }
+.error-fallback .card .pill {
+  margin-bottom: 14px;
+}
 .error-fallback h2 {
   font-size: 1.4rem;
   letter-spacing: -0.015em;
@@ -552,8 +555,16 @@ section.band > .wrap > p.sub {
   white-space: pre-wrap;
   word-break: break-word;
 }
+.error-fallback .error-details:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .error-fallback .error-actions {
   display: flex;
   justify-content: center;
   gap: 12px;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

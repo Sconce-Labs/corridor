@@ -390,8 +390,8 @@ independently.
 | R2-L2 | `assertStrongSecret` is **never called** by `buildWitness` or `issueCredential` — the H5 mitigation is opt-in and nothing opts in. Wire it into `buildWitness(cred, …)`. |
 | R2-L3 | Just-expired credential passes within `now_tolerance_secs` (holder sets `pi.now` as old as the window allows, `expiry > pi.now` still holds). Round-1 M7; documented as acceptable. |
 | R2-L4 | Two diverging Soroban read clients — `corridor-sdk/src/soroban.ts` (`SorobanReader`, hardcoded `SIM_SOURCE` strkey that looks 1 char short) vs `corridor/web/src/corridor.ts` (uses `Keypair.random()`). A `CorridorPolicy` shape change needs editing both. Consider publishing the SDK so `web/` can depend on it. |
-| R2-L5 | Web app sets `X-Content-Type-Options` / `Referrer-Policy` / `Permissions-Policy` but **no `Content-Security-Policy`**. Everything is bundled + one RPC host — a strict CSP is cheap. |
-| R2-L6 | No React error boundary in `web/src/App.tsx` — a render-time throw (unexpected `scValToNative` shape) white-screens the page. Async errors are handled. |
+| R2-L5 | ✅ **done** — Web app sets strict `Content-Security-Policy` in `vercel.json` (`default-src 'self'`, `connect-src 'self' https://soroban-testnet.stellar.org`, `img-src 'self' data:`, `style-src 'self' 'unsafe-inline'`, `base-uri 'none'`, `frame-ancestors 'none'`). |
+| R2-L6 | ✅ **done** — `web/src/ErrorBoundary.tsx` wraps `<App />` in `web/src/main.tsx` with a clean fallback card and application reload button. |
 | R2-L7 | ✅ **done** — `midnight/deploy.ts` calls `initAdmin` in the same run as the deploy, so there is no first-caller-wins window. The admin secret is `CORRIDOR_ADMIN_SECRET` or `sha256("…" + walletSeed)`. |
 | R2-L8 | `corridor.compact` has no `rotateIssuerAuth` — a leaked Midnight control secret forces `deregisterIssuer` + `registerIssuer`, losing the epoch. |
 | R2-L9 | `corridor.compact` `reportAttestations` is a self-reported, unverifiable counter — transparency theatre. Consider removing it (it's a circuit + attack surface for no real assurance). |
@@ -445,8 +445,10 @@ independently.
 | R2-M1 | SDK helper: diff Midnight `issuerEpoch` vs Stellar floors + warn | ⏳ M5 (issuer tooling) |
 | R2-M5 | In-circuit ECIES to `auditor_pubkey` (real auditor opening) | ⏳ M7 |
 | R2-M3 / R2-M4 / R2-M8 | verifier-swap delay · canonical-VK registry · global pause | ⏳ M3–M5 window, with the real verifier |
-| R2-L7 | ✅ done — atomic `initAdmin` in `midnight/deploy.ts` |
-| R2-L1, L4–L16 | hardening batch | ⏳ opportunistic (L4 typecheck-scope done — SDK + `midnight/`; L5/L6 → corridor#8) |
+| R2-L5 | Content-Security-Policy header in vercel.json | ✅ **done** — strict CSP with self, Soroban testnet RPC, inline styles, frame-ancestors none (corridor#8) |
+| R2-L6 | React ErrorBoundary in `web/src/ErrorBoundary.tsx` | ✅ **done** — `web/src/main.tsx` wraps `<App />` with the accessible fallback card + reload button (corridor#8) |
+| R2-L7 | atomic `initAdmin` in `midnight/deploy.ts` | ✅ **done** — no first-caller-wins window |
+| R2-L1, L4, L8–L16 | hardening batch | ⏳ opportunistic (L4 typecheck-scope done — SDK + `midnight/`) |
 
 The **near-term batch** (R2-H1, R2-H2, R2-M6, R2-M7, R2-L2) **shipped
 2026-09-10** — one pass across circuit + SDK + contracts + docs, no ABI-layout

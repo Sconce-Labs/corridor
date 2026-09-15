@@ -25,6 +25,20 @@ corridor — without re-uploading documents and without revealing who you are.
 
 ---
 
+## 67-second walkthrough
+
+<video src="https://raw.githubusercontent.com/Sconce-Labs/corridor/main/assets/demo.mp4"
+       controls muted playsinline
+       poster="https://raw.githubusercontent.com/Sconce-Labs/corridor/main/assets/demo-poster.jpg"
+       width="100%"></video>
+
+*(If the player above doesn't load, [open the video directly](./assets/demo.mp4).)*
+Recorded against the **live** deployment — the contract addresses, policy
+data, pass count, and the `is_cleared` clearance check are all real reads and
+a real write against Stellar testnet, not mocked screens.
+
+---
+
 ## The problem
 
 Every remittance provider, anchor, wallet, and aid program runs its own KYC. The

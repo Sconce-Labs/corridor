@@ -1,0 +1,98 @@
+{
+  "url": "https://corridor-pink.vercel.app",
+  "viewport": { "width": 1440, "height": 900 },
+  "voice": "en-US-AndrewNeural",
+  "rate": "+2%",
+  "scenes": [
+    {
+      "id": "01-hero",
+      "hash": "",
+      "narration": "Corridor is a portable, zero-knowledge proof of eligibility for cross-border payments.",
+      "actions": [
+        { "type": "wait", "ms": 480 },
+        { "type": "cursorTo", "selector": "h1" },
+        { "type": "wait", "ms": 1450 }
+      ]
+    },
+    {
+      "id": "02-pitch",
+      "hash": "",
+      "narration": "Do your KYC once, with a regulated issuer. Then prove you're cleared to any payment corridor, without re-uploading documents, and without revealing who you are.",
+      "actions": [
+        { "type": "cursorTo", "selector": ".lead" },
+        { "type": "wait", "ms": 2500 },
+        { "type": "cursorTo", "selector": ".cta-row .btn-primary" },
+        { "type": "wait", "ms": 2600 }
+      ]
+    },
+    {
+      "id": "03-how-it-works",
+      "hash": "how",
+      "narration": "An issuer signs a short-lived statement. The holder proves knowledge of it in zero knowledge, right on their own device. Stellar binds that proof to the corridor's policy and calls the verifier. And the payout gates on-chain, with zero identity data.",
+      "actions": [
+        { "type": "wait", "ms": 180 },
+        { "type": "cursorTo", "selector": ".step:nth-child(1)" },
+        { "type": "wait", "ms": 1770 },
+        { "type": "cursorTo", "selector": ".step:nth-child(2)" },
+        { "type": "wait", "ms": 2250 },
+        { "type": "cursorTo", "selector": ".step:nth-child(3)" },
+        { "type": "wait", "ms": 2250 },
+        { "type": "cursorTo", "selector": ".step:nth-child(4)" },
+        { "type": "wait", "ms": 1730 }
+      ]
+    },
+    {
+      "id": "04-live-testnet",
+      "hash": "live",
+      "narration": "This isn't a mock-up. The contracts are deployed and live on Stellar testnet, reading real policy data and pass counts straight from the chain.",
+      "actions": [
+        { "type": "wait", "ms": 400 },
+        { "type": "cursorTo", "selector": ".addr-list" },
+        { "type": "wait", "ms": 1830 },
+        { "type": "cursorTo", "selector": ".big-num" },
+        { "type": "wait", "ms": 1740 }
+      ]
+    },
+    {
+      "id": "05-clearance-check",
+      "hash": "check",
+      "narration": "Operators can check a clearance directly, no wallet required. This calls is-cleared on-chain, read only, right from the browser.",
+      "actions": [
+        { "type": "wait", "ms": 650 },
+        { "type": "cursorTo", "selector": "#nul" },
+        { "type": "wait", "ms": 300 },
+        { "type": "fill", "selector": "#nul", "text": "0x3333333333333333333333333333333333333333333333333333333333333333" },
+        { "type": "wait", "ms": 250 },
+        { "type": "cursorTo", "selector": ".checker button" },
+        { "type": "click", "selector": ".checker button" },
+        { "type": "waitForSelector", "selector": ".result", "timeout": 15000 },
+        { "type": "wait", "ms": 1900 }
+      ]
+    },
+    {
+      "id": "06-privacy",
+      "hash": "privacy",
+      "narration": "Every observer sees only what they need. A Stellar watcher sees a pass was granted, never who. A Midnight observer sees only the issuer registry. Nobody sees your identity.",
+      "actions": [
+        { "type": "wait", "ms": 380 },
+        { "type": "cursorTo", "selector": ".obs .row:nth-child(1)" },
+        { "type": "wait", "ms": 1800 },
+        { "type": "cursorTo", "selector": ".obs .row:nth-child(3)" },
+        { "type": "wait", "ms": 1800 },
+        { "type": "cursorTo", "selector": ".obs .row:nth-child(4)" },
+        { "type": "wait", "ms": 1640 }
+      ]
+    },
+    {
+      "id": "07-close",
+      "hash": "",
+      "footer": true,
+      "narration": "Corridor. Built with love, for Stellar. Explore the code, and contribute through the Stellar Drips Wave.",
+      "actions": [
+        { "type": "wait", "ms": 330 },
+        { "type": "cursorTo", "selector": ".foot-bottom .built" },
+        { "type": "wait", "ms": 2500 }
+      ]
+    }
+  ]
+}

@@ -94,7 +94,8 @@ expiry** — the issuer stops re-signing.
 | Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | — |
 | Schnorr conformance (SDK signer ⇄ circuit verifier) | sdk + circuits | ✅ pinned vector + `nargo execute` in CI | — |
 | SDK reads + `buildWitness` + `issueCredential` + signer | corridor-sdk | ✅ real, live testnet reads | `requestProof` + `enter` clients (M6) |
-| Real UltraHonk verifier | corridor-contracts | ❌ | wire `indextree/ultrahonk_soroban_contract` (M3) |
+| Real UltraHonk verifier (M3 step 1) | corridor-contracts `contracts/ultrahonk_verifier` + `crates/ultrahonk_core` | 🟡 full pipeline wired over the vendored, OZ-audited core; host+wasm green; E2E proof test pending | step 2: re-prove circuit with bb 0.87.0 → E2E test; step 3: testnet deploy |
+| SDK-28 isolation graph | corridor-contracts `crates/ultrahonk_core`, `crates/ultrahonk_test_utils`, `contracts/ultrahonk_verifier` | ✅ pinned soroban-sdk 28 (core needs `Bn254Fr`/`g1_msm`/`g1_is_on_curve`); workspace stays on 25.3; wire ABI is SDK-agnostic | stellar-cli ≥ 25.2 builds the verifier wasm (`stellar contract build`) |
 | Midnight issuer registry | this repo `contracts/corridor.compact` + `midnight/` | ✅ compiles in CI to a 6-circuit keyset; deploy/issuer/read tooling Option-B-ready (`npm run typecheck`) | simulator tests + Preprod deploy (M4, corridor#3) |
 | Fee-sponsoring tx-relayer | spec `docs/TX_RELAYER.md` | ❌ | build (M6) |
 | Frontend | this repo `web/` | ✅ site + live reads + `is_cleared` checker | holder/operator flows (M6) |
@@ -115,6 +116,54 @@ enter → is_cleared == true`, replay rejected #12. The demo corridor id is
 **Four places carry the addresses — update together on a redeploy:**
 `deployments/testnet.json`, `corridor-sdk/src/networks.ts`,
 `corridor/web/src/config.ts`, and the doc tables here + in each README.
+
+### M3 — real UltraHonk verifier (in progress; step 1 done 2026-10-05)
+
+Branch `m3/scaffold-verifier` on corridor-contracts (commit `6f275d4`, not yet
+pushed/PR'd).
+
+- **Vendored core**: `crates/ultrahonk_core` =
+  [NethermindEth/ultrahonk-rust-verifier] `crates/ultrahonk-soroban-verifier`
+  at `097da17df8b0b971d71885566034958a8caebab4` (2026-09-22), byte-identical
+  sources — the commit OpenZeppelin audited (Aug 2026: 0 Critical / 0 High /
+  0 Medium, 5 Low, all remediated). ~2,700 lines no_std; uses only native
+  Soroban host crypto (`bn254` field ops, `g1_msm`, `pairing_check`,
+  `keccak256`). Provenance: `crates/ultrahonk_core/VERIFIER_PROVENANCE.md`.
+- **SDK isolation**: the core needs SDK-28 host APIs (`Bn254Fr`, `g1_msm`,
+  `g1_is_on_curve`) absent from the workspace's SDK 25.3, so the core, the
+  vendored test-utils, and the verifier contract pin SDK 28.0.0 explicitly;
+  the rest of the workspace stays on 25.3. The contract deliberately does NOT
+  depend on `corridor_types` (an SDK-25 crate) — it re-implements the
+  `Verifier` wire ABI (`verify(vk_hash, proof, public_inputs) -> bool`) and
+  duplicates `PI_LEN = 9` as `PUB_INPUT_WORDS`.
+- **Adapter** (`contracts/ultrahonk_verifier`): VK stored once at deploy,
+  validated by parsing (1760 bytes) before storage, immutable, no admin;
+  fail-closed `verify` (wrong vk_hash pin / count ≠ 9 / length ≠ 14 592 /
+  any core error → `false`, never traps on caller input). 5 host tests.
+- **Formats**: proof = 456 × 32 = 14 592 bytes; VK = 1760 bytes; expected
+  public inputs = `vk.public_inputs_size − 16` (16 = the pairing-point object
+  carried in the proof). Corridor's 9 inputs must equal that — the Step-2 VK
+  must come from a circuit with exactly 9 pub inputs.
+- **Verified locally**: host build, wasm build (53 KB), 5 adapter tests,
+  12/13 core tests, fmt + clippy clean, SDK-25 wasm jobs unchanged.
+- **CI changes**: `stellar/stellar-cli@v28` action added (SDK 28 refuses to
+  cross-compile without a spec-shaking-aware build system — plain `cargo
+  build --target wasm32v1-none` errors; local stellar CLI is v23, too old);
+  verifier wasm now built via `stellar contract build --package
+  ultrahonk-verifier`; the one fixture-dependent core test is `--skip`ped
+  until Step 2 commits circuit artifacts.
+- **Step 2 (next)**: install bb **0.87.0** + Noir 1.0.0-beta.9 (upstream CI
+  does exactly this), re-prove the corridor circuit (its 9 pub inputs must
+  match `PI_*`), commit `tests/circuits/simple_circuit`-style fixtures for
+  corridor, add the E2E test: real proof + real VK → `verify == true`, plus
+  mutated/truncated/false-vk_hash negative cases, drop the CI skip. Upstream
+  circuits/scripts/build_all.sh is the template.
+- **Step 3**: upgrade local stellar CLI (≥ 25.2, ideally v28), deploy the
+  verifier to testnet with the real VK, `update_policy` `verifier` +
+  `vk_hash`, run the `enter()` E2E through the SDK, update the four
+  address-carrying places (§4 note above).
+
+[NethermindEth/ultrahonk-rust-verifier]: https://github.com/NethermindEth/ultrahonk-rust-verifier
 
 ---
 
@@ -177,6 +226,14 @@ enter → is_cleared == true`, replay rejected #12. The demo corridor id is
 
 11. **No Claude attribution in commits** (maintainer's standing instruction).
 
+12. **The bb toolchain pin is load-bearing and silent.** The vendored
+   verifier targets Barretenberg **v0.87.0** / `UltraKeccakFlavor` (Noir
+   1.0.0-beta.9); corridor-circuits pins Noir 1.0.0-beta.26 / bb
+   5.0.0-nightly.20260522. A bb mismatch is NOT caught by the proof-length
+   check — it fails at the transcript/pairing stage, i.e. every real proof
+   silently fails to verify. Prove with bb 0.87.0 (M3 step 2) or coordinate
+   a core bump. See `crates/ultrahonk_core/VERIFIER_PROVENANCE.md`.
+
 ---
 
 ## 6. Brand / org
@@ -219,10 +276,11 @@ profile, deployed on testnet. Remaining is procedural:
 
 ## 8. Immediate next actions (engineering)
 
-1. **M3 start** — vendor `indextree/ultrahonk_soroban_contract` into
-   `corridor-contracts/contracts/ultrahonk_verifier` behind the `Verifier`
-   interface; generate the VK from the circuit; deploy it; set `vk_hash` on a
-   test policy; end-to-end proof (from `buildWitness`) → `enter` on testnet.
+1. **M3 steps 2–3** — step 1 (vendored OZ-audited core + adapter, see the
+   M3 section in §4) is committed on `m3/scaffold-verifier` (`6f275d4`),
+   unpushed. Next: bb 0.87.0 re-proof of the circuit + E2E proof test, then
+   testnet deploy + `vk_hash` policy + `enter()` E2E (needs local stellar
+   CLI ≥ 25.2 — installed v23 lacks the SDK-28 spec-shaking handshake).
 2. **M4** — `corridor.compact` simulator tests + Preprod deploy; trim
    `midnight/` to the issuer/admin flows.
 3. **M5** — issuer CLI: KYC result → `issueCredential`, with CSPRNG enforcement.

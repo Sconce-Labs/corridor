@@ -231,6 +231,17 @@ warning.
 which is the correct default — a corridor that points at it today simply can't
 grant any pass.
 
+**Status 2026-10-05 (M3 step 1, in progress):** the verification core is now
+landed — `crates/ultrahonk_core` vendors
+NethermindEth/ultrahonk-rust-verifier @ `097da17` (the commit OpenZeppelin
+audited Aug 2026: 0 Critical/High/Medium, 5 Low remediated) on an isolated
+soroban-sdk-28 graph, and `contracts/ultrahonk_verifier` runs the full
+pipeline fail-closed behind the `vk_hash` pin (branch `m3/scaffold-verifier`,
+commit `6f275d4`, unpushed). **Still open:** the circuit must be re-proven
+with Barretenberg 0.87.0 (silent-mismatch trap, HANDOFF §5 #12), the E2E
+proof test, and the testnet swap off the mock. Until the swap, the finding
+stands: testnet verification is the mock, not cryptography.
+
 ---
 
 ## High
@@ -440,7 +451,7 @@ independently.
 | R2-M6 | Poseidon2 conformance only pinned arity-2 | ✅ **done** — arity-4 (statement) + arity-5 (auditor blob) now pinned explicitly in `conformance.nr`, `poseidon.test.ts`, and `poseidon_conformance`; `ABI.md` corrected. |
 | R2-M7 | `decode` accepted non-canonical numeric words | ✅ **done** — `word_to_u32`/`u64` return `Result` and error on non-zero high bytes → `BadPublicInputs`; `ABI.md` corrected; +3 tests. Defence in depth (circuit already range-constrains). |
 | R2-L2 | `assertStrongSecret` never called | ✅ **done** — `buildWitness` enforces it on `cred.holderSecret`. |
-| R2-C1 | Real UltraHonk verifier | ⏳ **M3** — the critical path |
+| R2-C1 | Real UltraHonk verifier | 🟡 **M3 in progress** — core vendored (OZ-audited) + adapter landed (step 1, `6f275d4`); E2E + testnet swap pending |
 | R2-M2 | `get_policy` / `enter` extend the `Policy` TTL | ⏳ next contracts PR |
 | R2-M1 | SDK helper: diff Midnight `issuerEpoch` vs Stellar floors + warn | ⏳ M5 (issuer tooling) |
 | R2-M5 | In-circuit ECIES to `auditor_pubkey` (real auditor opening) | ⏳ M7 |

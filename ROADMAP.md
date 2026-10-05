@@ -57,13 +57,24 @@ archived, all with CI:
 - ⏳ Still with the mock verifier — a real Option B *proof* through `enter()`
   waits on M3.
 
-### M3 — Real verifier on Stellar
-- Vendor / adapt `indextree/ultrahonk_soroban_contract` as
-  `corridor-contracts/contracts/ultrahonk_verifier` implementing the `Verifier` interface.
-- Generate the VK from the M2 circuit; deploy the verifier with it; set
-  `vk_hash` on a test policy.
-- End-to-end: M2 proof → `corridor_attestation.enter()` on testnet → pass
-  granted, nullifier burned, `ProofInvalid` on a tampered proof.
+### M3 — Real verifier on Stellar (step 1 done 2026-10-05)
+- ✅ **Step 1** — vendored the OpenZeppelin-audited UltraHonk core
+  (NethermindEth/ultrahonk-rust-verifier @ `097da17`, 0 Crit/High/Med) into
+  `corridor-contracts/crates/ultrahonk_core` on an isolated soroban-sdk-28
+  graph (the core needs SDK-28 host APIs; workspace stays on 25.3; the wire
+  ABI is SDK-agnostic). `contracts/ultrahonk_verifier` now runs the full
+  pipeline (transcript → sumcheck → Shplemini → pairing) fail-closed behind
+  the `vk_hash` pin; VK parsed + validated at deploy, immutable. Host + wasm
+  green (53 KB); branch `m3/scaffold-verifier` commit `6f275d4`, unpushed.
+- ⏳ **Step 2** — re-prove the corridor circuit with Barretenberg **0.87.0**
+  (the verifier's pin; a bb mismatch fails silently, see HANDOFF §5 #12;
+  corridor currently pins bb 5.0.0-nightly via Noir beta.26) + Noir
+  1.0.0-beta.9; commit circuit fixtures; E2E test: real proof + real VK →
+  `verify == true`, mutated/truncated/wrong-hash → `false`; drop the CI skip.
+- ⏳ **Step 3** — deploy the verifier to testnet with the real VK (needs
+  stellar CLI ≥ 25.2 locally); `update_policy` `verifier` + `vk_hash` on a
+  test corridor; end-to-end: SDK proof → `enter()` → pass granted, nullifier
+  burned, `ProofInvalid` on a tampered proof.
 - **Done when:** the mock is out of the critical path for at least one corridor.
 
 ### M4 — Midnight issuer registry live

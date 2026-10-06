@@ -1,0 +1,29 @@
+name: Bug report
+description: Something is broken or incorrect
+labels: ["bug"]
+body:
+  - type: textarea
+    id: observed
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Commands, fixture, transaction hash, or test that shows it.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment (commit, network, toolchain versions)
+    validations:
+      required: false

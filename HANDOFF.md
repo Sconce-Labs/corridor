@@ -94,7 +94,7 @@ expiry** — the issuer stops re-signing.
 | Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | — |
 | Schnorr conformance (SDK signer ⇄ circuit verifier) | sdk + circuits | ✅ pinned vector + `nargo execute` in CI | — |
 | SDK reads + `buildWitness` + `issueCredential` + signer | corridor-sdk | ✅ real, live testnet reads | `requestProof` + `enter` clients (M6) |
-| Real UltraHonk verifier (M3 step 1) | corridor-contracts `contracts/ultrahonk_verifier` + `crates/ultrahonk_core` | 🟡 full pipeline wired over the vendored, OZ-audited core; host+wasm green; E2E proof test pending | step 2: re-prove circuit with bb 0.87.0 → E2E test; step 3: testnet deploy |
+| Real UltraHonk verifier (M3 steps 1–2) | corridor-contracts `contracts/ultrahonk_verifier` + `crates/ultrahonk_core` | 🟡 full pipeline wired over the vendored, OZ-audited core; **real corridor proof E2E-verifies in the Soroban host** (54 host tests, fixtures committed) | step 3: testnet deploy + `vk_hash` policy + `enter()` E2E |
 | SDK-28 isolation graph | corridor-contracts `crates/ultrahonk_core`, `crates/ultrahonk_test_utils`, `contracts/ultrahonk_verifier` | ✅ pinned soroban-sdk 28 (core needs `Bn254Fr`/`g1_msm`/`g1_is_on_curve`); workspace stays on 25.3; wire ABI is SDK-agnostic | stellar-cli ≥ 25.2 builds the verifier wasm (`stellar contract build`) |
 | Midnight issuer registry | this repo `contracts/corridor.compact` + `midnight/` | ✅ compiles in CI to a 6-circuit keyset; deploy/issuer/read tooling Option-B-ready (`npm run typecheck`) | simulator tests + Preprod deploy (M4, corridor#3) |
 | Fee-sponsoring tx-relayer | spec `docs/TX_RELAYER.md` | ❌ | build (M6) |
@@ -117,10 +117,12 @@ enter → is_cleared == true`, replay rejected #12. The demo corridor id is
 `deployments/testnet.json`, `corridor-sdk/src/networks.ts`,
 `corridor/web/src/config.ts`, and the doc tables here + in each README.
 
-### M3 — real UltraHonk verifier (in progress; step 1 done 2026-10-05)
+### M3 — real UltraHonk verifier (in progress; steps 1–2 done 2026-10-05/06)
 
-Branch `m3/scaffold-verifier` on corridor-contracts (commit `6f275d4`, not yet
-pushed/PR'd).
+Branch `m3/scaffold-verifier` on corridor-contracts (commits `6f275d4` step 1,
+`3821160` step 2, not yet pushed/PR'd; ambient GitHub credential is
+`sojetunde8` → 403 on Sconce-Labs, so push needs Samuel). Step 2 also landed a
+sibling branch `m3/beta9-toolchain` `2feb370` on corridor-circuits.
 
 - **Vendored core**: `crates/ultrahonk_core` =
   [NethermindEth/ultrahonk-rust-verifier] `crates/ultrahonk-soroban-verifier`
@@ -152,13 +154,39 @@ pushed/PR'd).
   verifier wasm now built via `stellar contract build --package
   ultrahonk-verifier`; the one fixture-dependent core test is `--skip`ped
   until Step 2 commits circuit artifacts.
-- **Step 2 (next)**: install bb **0.87.0** + Noir 1.0.0-beta.9 (upstream CI
-  does exactly this), re-prove the corridor circuit (its 9 pub inputs must
-  match `PI_*`), commit `tests/circuits/simple_circuit`-style fixtures for
-  corridor, add the E2E test: real proof + real VK → `verify == true`, plus
-  mutated/truncated/false-vk_hash negative cases, drop the CI skip. Upstream
-  circuits/scripts/build_all.sh is the template.
-- **Step 3**: upgrade local stellar CLI (≥ 25.2, ideally v28), deploy the
+- **Step 2 (done 2026-10-06)** — real corridor artifacts committed and
+  E2E-verified. What it took (the toolchain downgrade surfaced real API
+  deltas, not just comments):
+  - `corridor-circuits` `m3/beta9-toolchain` `2feb370`: beta.9 rejects
+    non-ASCII comment chars (28 errors — em dashes, box-drawing rules;
+    comment-only rewrite); **poseidon retagged v0.3.0 → v0.2.6** (v0.3.0 uses
+    post-beta.9 syntax: `@[]`, 1-arg `poseidon2_permutation`);
+    **schnorr v0.4.0 vendored at `vendor/schnorr`** (noir-lang/schnorr @
+    `9995bcc`) with the minimal beta.9 fixes — `EmbeddedCurvePoint` is a
+    plain struct there (no `::new`, `is_infinite` is a field, not a method),
+    and its poseidon dep retagged. v0.4.0 is kept (not downgraded) because
+    the fixture and the SDK signer pin its scheme (`e = Poseidon2(DST, R.x,
+    pk.x, pk.y, msg)`); proof: all 20 `nargo` tests pass, including every
+    `conformance.nr` pinned vector, so **poseidon v0.2.6 is hash-identical
+    to v0.3.0 at arities 1/2/4/5**.
+  - Artifacts (bb `bytes_and_fields`): proof 14 592 B, VK 1 760 B,
+    public_inputs 288 B = 9 × 32 B, matching the fixture's `PI_*` values
+    word-for-word; natively accepted by `bb verify` 0.87.0. Committed under
+    `tests/circuits/corridor_eligibility/target/{proof,vk,public_inputs}`.
+  - **Toolchain provenance cross-check**: rebuilding upstream's
+    `simple_circuit` with the same local nargo/bb reproduced upstream's
+    pinned VK hash (`d3acde72ad73…`) byte-for-byte; that fixture is also
+    committed, so the previously skipped `transcript::tests::
+    test_transcript_determinism` now runs (its pinned eta digest matches).
+  - `corridor-contracts` `3821160`: four adapter E2E tests on the real
+    artifacts — real proof + real VK → `verify == true` through the full
+    pipeline in the Soroban host; mutated proof (mid-proof byte flip) →
+    `false`; truncated proof → `false`; swapped `PI` words (order drift) →
+    `false`. These also pin the duplicated `PUB_INPUT_WORDS = 9` against the
+    real circuit. `--skip` dropped from ci.yml/Makefile/README; **54 host
+    tests** green, fmt + clippy clean. bb 0.87.0 also needs `jq` on PATH
+    (it shells out for ACIR JSON parsing).
+- **Step 3 (next)**: upgrade local stellar CLI (≥ 25.2, ideally v28), deploy the
   verifier to testnet with the real VK, `update_policy` `verifier` +
   `vk_hash`, run the `enter()` E2E through the SDK, update the four
   address-carrying places (§4 note above).
@@ -276,11 +304,13 @@ profile, deployed on testnet. Remaining is procedural:
 
 ## 8. Immediate next actions (engineering)
 
-1. **M3 steps 2–3** — step 1 (vendored OZ-audited core + adapter, see the
-   M3 section in §4) is committed on `m3/scaffold-verifier` (`6f275d4`),
-   unpushed. Next: bb 0.87.0 re-proof of the circuit + E2E proof test, then
-   testnet deploy + `vk_hash` policy + `enter()` E2E (needs local stellar
-   CLI ≥ 25.2 — installed v23 lacks the SDK-28 spec-shaking handshake).
+1. **M3 step 3** — steps 1–2 are committed on `m3/scaffold-verifier`
+   (`6f275d4` + `3821160`): the vendored OZ-audited core + adapter, and the
+   re-proven circuit with committed fixtures that E2E-verify (see the M3
+   section in §4; circuit-side work on `m3/beta9-toolchain` `2feb370`). All
+   unpushed. Next: testnet deploy + `vk_hash` policy + `enter()` E2E (needs
+   local stellar CLI ≥ 25.2 — installed v23 lacks the SDK-28 spec-shaking
+   handshake).
 2. **M4** — `corridor.compact` simulator tests + Preprod deploy; trim
    `midnight/` to the issuer/admin flows.
 3. **M5** — issuer CLI: KYC result → `issueCredential`, with CSPRNG enforcement.

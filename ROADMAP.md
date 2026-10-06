@@ -20,7 +20,7 @@ archived, all with CI:
 
 | Layer | Built | Not built |
 |-------|-------|-----------|
-| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (`register`/`update_policy`/`set_min_cred_epoch`/two-step admin/events), attestation (`enter`/`is_cleared`/nullifier ledger/TTL/events), mock verifier, `ultrahonk_verifier` skeleton, typed ABI, **33 host tests**, **deployed + smoke-verified on testnet (Option B)**, Poseidon2 conformance | real UltraHonk verification (M3), payout-push mode, gas benchmarks |
+| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (`register`/`update_policy`/`set_min_cred_epoch`/two-step admin/events), attestation (`enter`/`is_cleared`/nullifier ledger/TTL/events), mock verifier, real `ultrahonk_verifier` (core + real-proof E2E), typed ABI, **54 host tests**, **deployed + smoke-verified on testnet (Option B)**, Poseidon2 conformance | testnet verifier swap (M3 step 3), payout-push mode, gas benchmarks |
 | Noir circuit ([corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)) | `eligibility`/`tags`/`conformance` modules, Grumpkin **Schnorr signature verification**, `nargo check`+`test` (20 tests, all failure modes), `nargo execute` on a real signed fixture, gate-count in CI (73 ACIR opcodes), best-effort `bb prove/verify` | pinned `bb` once beta.26 gets a published mapping |
 | Midnight / Compact (this repo `contracts/`) | **issuer registry** (`registerIssuer`/`bumpEpoch`/`reportAttestations`), issuer-auth via control-secret hash, **compiles in CI (6 circuits)** | simulator tests, Preprod deploy (M4) |
 | SDK ([corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)) | `getPolicy`/`isCleared`/`passes`/`passRecord` (live), `buildWitness`, `verifyWitnessLocally`, **Grumpkin signer + `issueCredential`**, `makeFixture`, 3-step issuance, 25 tests, examples | `requestProof`/`enter` (need M3 + tx-relayer), issuer CLI |
@@ -57,7 +57,7 @@ archived, all with CI:
 - ⏳ Still with the mock verifier — a real Option B *proof* through `enter()`
   waits on M3.
 
-### M3 — Real verifier on Stellar (step 1 done 2026-10-05)
+### M3 — Real verifier on Stellar (steps 1–2 done 2026-10-05/06)
 - ✅ **Step 1** — vendored the OpenZeppelin-audited UltraHonk core
   (NethermindEth/ultrahonk-rust-verifier @ `097da17`, 0 Crit/High/Med) into
   `corridor-contracts/crates/ultrahonk_core` on an isolated soroban-sdk-28
@@ -66,11 +66,19 @@ archived, all with CI:
   pipeline (transcript → sumcheck → Shplemini → pairing) fail-closed behind
   the `vk_hash` pin; VK parsed + validated at deploy, immutable. Host + wasm
   green (53 KB); branch `m3/scaffold-verifier` commit `6f275d4`, unpushed.
-- ⏳ **Step 2** — re-prove the corridor circuit with Barretenberg **0.87.0**
-  (the verifier's pin; a bb mismatch fails silently, see HANDOFF §5 #12;
-  corridor currently pins bb 5.0.0-nightly via Noir beta.26) + Noir
-  1.0.0-beta.9; commit circuit fixtures; E2E test: real proof + real VK →
-  `verify == true`, mutated/truncated/wrong-hash → `false`; drop the CI skip.
+- ✅ **Step 2** — re-proved `corridor_eligibility` on the pinned toolchain
+  (Noir 1.0.0-beta.9 + bb 0.87.0, UltraKeccakFlavor): proof 14,592 B, VK
+  1,760 B, public_inputs 288 B (9 × 32 B), natively `bb verify`-checked and
+  committed under `tests/circuits/`. Toolchain provenance cross-checked: the
+  regenerated upstream `simple_circuit` VK is byte-identical to upstream's
+  pinned artifact hash. Four adapter E2E tests on the real artifacts: real
+  proof verifies in the Soroban host; mutated/truncated proofs and reordered
+  public inputs rejected. CI skip dropped; 54 host tests green. Circuit
+  needed beta.9 compatibility work (ASCII-only comments, poseidon v0.2.6
+  retag — hash-identical at the used arities per `conformance.nr` — and
+  schnorr v0.4.0 vendored with minimal beta.9 fixes to keep the
+  SDK-pinned scheme): `corridor-circuits` `m3/beta9-toolchain` `2feb370`;
+  contracts: `m3/scaffold-verifier` `3821160`, unpushed (see HANDOFF §4).
 - ⏳ **Step 3** — deploy the verifier to testnet with the real VK (needs
   stellar CLI ≥ 25.2 locally); `update_policy` `verifier` + `vk_hash` on a
   test corridor; end-to-end: SDK proof → `enter()` → pass granted, nullifier

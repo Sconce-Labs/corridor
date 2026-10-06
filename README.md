@@ -35,7 +35,8 @@ corridor — without re-uploading documents and without revealing who you are.
 *(If the player above doesn't load, [open the video directly](./assets/demo.mp4).)*
 Recorded against the **live** deployment — the contract addresses, policy
 data, pass count, and the `is_cleared` clearance check are all real reads and
-a real write against Stellar testnet, not mocked screens.
+a real write against Stellar testnet, not mocked screens. *(Recorded before M3;
+a refresh showing the real on-chain proof path is [tracked here](https://github.com/Sconce-Labs/corridor/issues/23).)*
 
 ---
 
@@ -97,29 +98,44 @@ Full breakdown in [`COMPONENTS.md`](./COMPONENTS.md).
 
 ## Where it stands
 
-**Pre-MVP research build**, participating in the
-**[Stellar Drips Wave](https://www.drips.network/wave/stellar)**.
+**Research build, real on this testnet**: real zero-knowledge proofs are
+verified by a real on-chain verifier — a corridor pass is granted, replayed
+passes are rejected, tampered proofs are rejected — all visible in testnet
+transactions below.
 
 | Layer | State |
 |-------|-------|
-| Soroban `corridor_registry` + `corridor_attestation` + `verifier_mock` | ✅ 30 host tests; **deployed + smoke-verified on Stellar testnet (Option B ABI)** |
-| Noir `corridor_eligibility` circuit | ✅ 20 tests, real Grumpkin Schnorr verification, `nargo execute` on a signed fixture (Noir 1.0.0-beta.26) |
+| Soroban `corridor_registry` + `corridor_attestation` | ✅ deployed on testnet (Option B ABI) since 2026-09-10 |
+| **Real on-chain UltraHonk verifier** | ✅ **live on testnet (M3)** — vendored OpenZeppelin-audited core; a real bb 0.87.0 proof **granted a pass on-chain** (`PassGranted` → `is_cleared == true`), replay → `NullifierUsed`, tampered proof → `ProofInvalid` |
+| 54 host tests incl. 4 real-proof E2E tests | ✅ CI green ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) |
+| Noir `corridor_eligibility` circuit | ✅ 20 tests, real Grumpkin Schnorr verification, `nargo execute` on a signed fixture (Noir 1.0.0-beta.9 — pinned to the verifier's toolchain) |
 | `@corridor/verify` SDK | ✅ 25 tests — Soroban reads, `buildWitness`, `verifyWitnessLocally`, 3-step issuance, Grumpkin signer |
-| Poseidon2 + Schnorr conformance (circuit ⇄ SDK ⇄ Soroban) | ✅ pinned vectors match; `nargo execute` on the SDK-signed fixture is the end-to-end check |
+| Poseidon2 + Schnorr conformance (circuit ⇄ SDK ⇄ Soroban) | ✅ pinned vectors match on all arities the circuit uses |
 | Web app (`web/`) | ✅ public site + live testnet reads + operator clearance checker → [corridor-pink.vercel.app](https://corridor-pink.vercel.app) |
-| Real on-chain UltraHonk verifier | ⏳ **M3** — a mock stands in |
 | Midnight `corridor.compact` issuer registry | ✅ compiles in CI (6-circuit ZK keyset); deploy tooling Option-B-ready; ⏳ simulator tests + Preprod deploy (M4) |
-| Fee-sponsoring tx-relayer + holder/operator flows | ⏳ **M6** — [`docs/TX_RELAYER.md`](./docs/TX_RELAYER.md) |
+| Holder/operator flows + fee-sponsoring tx-relayer | ⏳ **M6** — [`docs/TX_RELAYER.md`](./docs/TX_RELAYER.md) |
 
-### Deployed addresses (Stellar testnet, Option B ABI)
+### Deployed addresses (Stellar testnet)
 
 Record: [`corridor-contracts/deployments/testnet.json`](https://github.com/Sconce-Labs/corridor-contracts/blob/main/deployments/testnet.json)
+
+**M3 stack — real verifier, corridor `0x…04` (2026-10-06):**
+
+| Contract | Address |
+|----------|---------|
+| `ultrahonk_verifier` | [`CCUWJKEA…O2VW`](https://stellar.expert/explorer/testnet/contract/CCUWJKEAVQ2CSJWHJ6LEQYZUWRB7VGKUV6ETQJI4NZC2CKXVQZZVO2VW) — pinned `vk_hash` `f994ec68…d44` |
+| `corridor_registry` | [`CDNVUEYO…LABX`](https://stellar.expert/explorer/testnet/contract/CDNVUEYOSIJE56XUVS432PJ3OUR32MA7WQXOLFMOTKC7RWFPW66ILABX) |
+| `corridor_attestation` | [`CCB4AQDG…RMPA`](https://stellar.expert/explorer/testnet/contract/CCB4AQDGWYM27UPOGHL4RMBG7RWSP23ZZCRYU7LYWWLI4N4IMEEIRMPA) |
+
+Real-proof E2E: [`enter` tx `1ba4f264…9ca2`](https://stellar.expert/explorer/testnet/tx/1ba4f264914c94a3c424814fa1793706085302b64477e387ecc9f7967bf39ca2) → `PassGranted`.
+
+**Legacy stack (2026-09-10) — mock verifier, pending `update_policy` swap:**
 
 | Contract | Address |
 |----------|---------|
 | `corridor_registry` | [`CDGMQ24E…XJ6`](https://stellar.expert/explorer/testnet/contract/CDGMQ24E6OIBZB3EKJN5TUA5POYE6D5FNBL2II6SRLTYF32TE4HIEXJ6) |
 | `corridor_attestation` | [`CCHWKVRC…L4K`](https://stellar.expert/explorer/testnet/contract/CCHWKVRCEKPJHEXREP5SCZ4TEKNBFYEFYA2VR3SET5AMG4WOC76LDL4K) |
-| `verifier_mock` (M3 placeholder) | [`CBN7N7AT…K46Y`](https://stellar.expert/explorer/testnet/contract/CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y) |
+| `verifier_mock` (placeholder) | [`CBN7N7AT…K46Y`](https://stellar.expert/explorer/testnet/contract/CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y) |
 
 ---
 
@@ -179,6 +195,27 @@ After a contract redeploy, update `web/src/config.ts` **and**
 `corridor-sdk/src/networks.ts`.
 
 ---
+
+## Contributing — start here
+
+Corridor participates in the **[Stellar Drips Wave](https://www.drips.network/wave/stellar)**:
+contributors solve labeled issues during monthly sprints and earn from an
+SDF-funded pool. **75+ scoped issues are open across the repos** — rustdoc,
+boundary tests, CI jobs, docs, small features — 28 of them tagged
+`good first issue`.
+
+| Where to start | Good for |
+|----------------|----------|
+| [good first issues across the org](https://github.com/search?q=org%3ASconce-Labs+label%3A%22good+first+issue%22+state%3Aopen&type=issues) | first contribution |
+| [corridor-contracts issues](https://github.com/Sconce-Labs/corridor-contracts/issues) | Rust / Soroban / ZK verifier |
+| [corridor-circuits issues](https://github.com/Sconce-Labs/corridor-circuits/issues) | Noir / ZK circuits |
+| [corridor-sdk issues](https://github.com/Sconce-Labs/corridor-sdk/issues) | TypeScript / SDK |
+| [this repo's issues](https://github.com/Sconce-Labs/corridor/issues) | React / docs / Midnight |
+
+Every issue states acceptance criteria; `complexity: low/medium/high` maps to
+Drips points. Read [CONTRIBUTING.md](./CONTRIBUTING.md) (cross-repo rules) and
+the `CONTRIBUTING.md` of the repo you pick (setup + gates). The full issue map:
+[`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md).
 
 ## Origin & participation
 

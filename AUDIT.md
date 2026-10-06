@@ -231,19 +231,23 @@ warning.
 which is the correct default — a corridor that points at it today simply can't
 grant any pass.
 
-**Status 2026-10-06 (M3 step 2, in progress):** step 1 landed the core
-(`crates/ultrahonk_core` vendors NethermindEth/ultrahonk-rust-verifier @
+**Status 2026-10-06 (M3 complete, PRs open for review):** step 1 landed the
+core (`crates/ultrahonk_core` vendors NethermindEth/ultrahonk-rust-verifier @
 `097da17` — the commit OpenZeppelin audited Aug 2026: 0 Critical/High/Medium,
-5 Low remediated — on an isolated soroban-sdk-28 graph) and step 2 landed the
-real artifacts: `corridor_eligibility` re-proven with Noir 1.0.0-beta.9 + bb
-0.87.0 (toolchain provenance cross-checked byte-for-byte against upstream's
-pinned VK hash), fixtures committed, and four E2E tests run the real proof
-through the full pipeline in the Soroban host (`verify == true`; mutated /
-truncated proofs and reordered inputs → `false`). 54 host tests green
-(`m3/scaffold-verifier` `3821160`; circuit-side `m3/beta9-toolchain` `2feb370`,
-unpushed). **Still open:** the testnet swap off the mock (deploy the verifier,
-`update_policy` `verifier` + `vk_hash`, re-run the `enter()` E2E). Until that
-swap, the finding stands: testnet verification is the mock, not cryptography.
+5 Low remediated — on an isolated soroban-sdk-28 graph); step 2 landed the real
+artifacts (circuit re-proven on the pinned noir 1.0.0-beta.9 + bb 0.87.0
+toolchain, fixtures committed, four host E2E tests, 54 tests green); step 3
+deployed the verifier to testnet with the real VK and wired it into corridor
+`0x…04`'s policy: a fresh real bb 0.87.0 proof **granted a pass on-chain**
+(`enter` → `PassGranted`, `is_cleared == true`), a replay was rejected with
+`NullifierUsed` (#12) and a single-bit-tampered proof with `ProofInvalid` (#11)
+— i.e. real cryptography now grants and rejects passes on-chain
+(`deployments/testnet.json` `m3RealVerifier`; contracts PR #16, circuits PR #5,
+sdk PR #14, all CI-green). **Still open on this finding:** the 2026-09-10
+deployment (`CBN7N7AT…` mock) is unchanged and still answers `enter()` for
+whatever corridors still point at it — swap it via one `update_policy` call
+with the original `corridor` operator key, or decommission it. Until that last
+swap (or teardown), a stale testnet corridor remains mock-verified.
 
 ---
 
@@ -454,7 +458,7 @@ independently.
 | R2-M6 | Poseidon2 conformance only pinned arity-2 | ✅ **done** — arity-4 (statement) + arity-5 (auditor blob) now pinned explicitly in `conformance.nr`, `poseidon.test.ts`, and `poseidon_conformance`; `ABI.md` corrected. |
 | R2-M7 | `decode` accepted non-canonical numeric words | ✅ **done** — `word_to_u32`/`u64` return `Result` and error on non-zero high bytes → `BadPublicInputs`; `ABI.md` corrected; +3 tests. Defence in depth (circuit already range-constrains). |
 | R2-L2 | `assertStrongSecret` never called | ✅ **done** — `buildWitness` enforces it on `cred.holderSecret`. |
-| R2-C1 | Real UltraHonk verifier | 🟡 **M3 in progress** — core vendored (OZ-audited, step 1) + real corridor proof E2E-verifies with committed fixtures (step 2, `3821160`); testnet swap pending |
+| R2-C1 | Real UltraHonk verifier | 🟡 **M3 done, awaiting PR merge + mock-stack teardown** — core vendored (OZ-audited), real proof verified on-chain (PassGranted / NullifierUsed / ProofInvalid all exercised on testnet); 09-10 mock stack still serves its old corridors |
 | R2-M2 | `get_policy` / `enter` extend the `Policy` TTL | ⏳ next contracts PR |
 | R2-M1 | SDK helper: diff Midnight `issuerEpoch` vs Stellar floors + warn | ⏳ M5 (issuer tooling) |
 | R2-M5 | In-circuit ECIES to `auditor_pubkey` (real auditor opening) | ⏳ M7 |

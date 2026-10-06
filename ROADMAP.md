@@ -20,7 +20,7 @@ archived, all with CI:
 
 | Layer | Built | Not built |
 |-------|-------|-----------|
-| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (`register`/`update_policy`/`set_min_cred_epoch`/two-step admin/events), attestation (`enter`/`is_cleared`/nullifier ledger/TTL/events), mock verifier, real `ultrahonk_verifier` (core + real-proof E2E), typed ABI, **54 host tests**, **deployed + smoke-verified on testnet (Option B)**, Poseidon2 conformance | testnet verifier swap (M3 step 3), payout-push mode, gas benchmarks |
+| Stellar / Soroban ([corridor-contracts](https://github.com/Sconce-Labs/corridor-contracts)) | registry (`register`/`update_policy`/`set_min_cred_epoch`/two-step admin/events), attestation (`enter`/`is_cleared`/nullifier ledger/TTL/events), mock verifier, **real `ultrahonk_verifier` — live on testnet, corridor 0x04 grants/rejects real proofs**, typed ABI, **54 host tests**, Poseidon2 conformance | swap the 09-10 mock stack (one `update_policy`), payout-push mode, gas benchmarks |
 | Noir circuit ([corridor-circuits](https://github.com/Sconce-Labs/corridor-circuits)) | `eligibility`/`tags`/`conformance` modules, Grumpkin **Schnorr signature verification**, `nargo check`+`test` (20 tests, all failure modes), `nargo execute` on a real signed fixture, gate-count in CI (73 ACIR opcodes), best-effort `bb prove/verify` | pinned `bb` once beta.26 gets a published mapping |
 | Midnight / Compact (this repo `contracts/`) | **issuer registry** (`registerIssuer`/`bumpEpoch`/`reportAttestations`), issuer-auth via control-secret hash, **compiles in CI (6 circuits)** | simulator tests, Preprod deploy (M4) |
 | SDK ([corridor-sdk](https://github.com/Sconce-Labs/corridor-sdk)) | `getPolicy`/`isCleared`/`passes`/`passRecord` (live), `buildWitness`, `verifyWitnessLocally`, **Grumpkin signer + `issueCredential`**, `makeFixture`, 3-step issuance, 25 tests, examples | `requestProof`/`enter` (need M3 + tx-relayer), issuer CLI |
@@ -57,7 +57,7 @@ archived, all with CI:
 - ⏳ Still with the mock verifier — a real Option B *proof* through `enter()`
   waits on M3.
 
-### M3 — Real verifier on Stellar (steps 1–2 done 2026-10-05/06)
+### M3 — Real verifier on Stellar (done 2026-10-06; PRs open for review)
 - ✅ **Step 1** — vendored the OpenZeppelin-audited UltraHonk core
   (NethermindEth/ultrahonk-rust-verifier @ `097da17`, 0 Crit/High/Med) into
   `corridor-contracts/crates/ultrahonk_core` on an isolated soroban-sdk-28
@@ -78,12 +78,25 @@ archived, all with CI:
   retag — hash-identical at the used arities per `conformance.nr` — and
   schnorr v0.4.0 vendored with minimal beta.9 fixes to keep the
   SDK-pinned scheme): `corridor-circuits` `m3/beta9-toolchain` `2feb370`;
-  contracts: `m3/scaffold-verifier` `3821160`, unpushed (see HANDOFF §4).
-- ⏳ **Step 3** — deploy the verifier to testnet with the real VK (needs
-  stellar CLI ≥ 25.2 locally); `update_policy` `verifier` + `vk_hash` on a
-  test corridor; end-to-end: SDK proof → `enter()` → pass granted, nullifier
-  burned, `ProofInvalid` on a tampered proof.
-- **Done when:** the mock is out of the critical path for at least one corridor.
+  contracts: `m3/scaffold-verifier` `3821160`. Pushed: contracts PR #16,
+  circuits PR #5 (a first push silently dropped the fixtures under the
+  `target/` gitignore rule — CI caught it; fixed in `0bd0320` and the
+  ignore rule now re-includes exactly `proof`/`vk`/`public_inputs`).
+- ✅ **Step 3** — real verifier live on testnet with a fresh Option-B stack
+  (stellar-cli 28.0.0, identity `corridor-m3`): constructor validated +
+  stored the real VK (`vk_hash f994ec68…`), corridor `0x…04` registered
+  with the policy pinning that verifier + `vk_hash` (min_tier 3,
+  min_cred_epoch 1, the fixture's deterministic issuer). On-chain E2E with
+  a **fresh real bb 0.87.0 proof** (from the new
+  `corridor-sdk/scripts/gen-testnet-fixture.ts`, PR #14 — the committed
+  fixture's fixed `now` can never pass `enter`'s ledger-skew check):
+  `enter` → `PassGranted` (tag 2, passes 1), `is_cleared == true`, replay →
+  `NullifierUsed` (#12), tampered proof → `ProofInvalid` (#11). Addresses
+  + tx hashes in `deployments/testnet.json` (`m3RealVerifier`). The
+  2026-09-10 mock stack is untouched; decommission it or point its policy
+  at the new verifier in a follow-up.
+- ✅ **Done-when met:** the mock is out of the critical path for corridor
+  `0x…04` — real cryptography grants and rejects passes on-chain.
 
 ### M4 — Midnight issuer registry live
 - ✅ `compact compile` clean in CI; the compiled 6-circuit ZK keyset is

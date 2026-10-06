@@ -94,7 +94,7 @@ expiry** — the issuer stops re-signing.
 | Poseidon2 conformance (circuit ⇄ SDK ⇄ Soroban) | contracts/circuits/sdk | ✅ pinned vector matches all three | — |
 | Schnorr conformance (SDK signer ⇄ circuit verifier) | sdk + circuits | ✅ pinned vector + `nargo execute` in CI | — |
 | SDK reads + `buildWitness` + `issueCredential` + signer | corridor-sdk | ✅ real, live testnet reads | `requestProof` + `enter` clients (M6) |
-| Real UltraHonk verifier (M3 steps 1–2) | corridor-contracts `contracts/ultrahonk_verifier` + `crates/ultrahonk_core` | 🟡 full pipeline wired over the vendored, OZ-audited core; **real corridor proof E2E-verifies in the Soroban host** (54 host tests, fixtures committed) | step 3: testnet deploy + `vk_hash` policy + `enter()` E2E |
+| Real UltraHonk verifier (M3) | corridor-contracts `contracts/ultrahonk_verifier` + `crates/ultrahonk_core` | ✅ **live on testnet** — real corridor proof granted a pass on-chain (PassGranted → is_cleared true; replay → NullifierUsed; tampered → ProofInvalid); 54 host tests green; CI green on PR #16 | swap the 09-10 mock stack via `update_policy`, gas benchmarks |
 | SDK-28 isolation graph | corridor-contracts `crates/ultrahonk_core`, `crates/ultrahonk_test_utils`, `contracts/ultrahonk_verifier` | ✅ pinned soroban-sdk 28 (core needs `Bn254Fr`/`g1_msm`/`g1_is_on_curve`); workspace stays on 25.3; wire ABI is SDK-agnostic | stellar-cli ≥ 25.2 builds the verifier wasm (`stellar contract build`) |
 | Midnight issuer registry | this repo `contracts/corridor.compact` + `midnight/` | ✅ compiles in CI to a 6-circuit keyset; deploy/issuer/read tooling Option-B-ready (`npm run typecheck`) | simulator tests + Preprod deploy (M4, corridor#3) |
 | Fee-sponsoring tx-relayer | spec `docs/TX_RELAYER.md` | ❌ | build (M6) |
@@ -117,12 +117,13 @@ enter → is_cleared == true`, replay rejected #12. The demo corridor id is
 `deployments/testnet.json`, `corridor-sdk/src/networks.ts`,
 `corridor/web/src/config.ts`, and the doc tables here + in each README.
 
-### M3 — real UltraHonk verifier (in progress; steps 1–2 done 2026-10-05/06)
+### M3 — real UltraHonk verifier (complete 2026-10-06; steps 1–3 done, PRs open)
 
 Branch `m3/scaffold-verifier` on corridor-contracts (commits `6f275d4` step 1,
-`3821160` step 2, not yet pushed/PR'd; ambient GitHub credential is
-`sojetunde8` → 403 on Sconce-Labs, so push needs Samuel). Step 2 also landed a
-sibling branch `m3/beta9-toolchain` `2feb370` on corridor-circuits.
+`3821160` step 2, `0bd0320` fixtures fix, `ee49115` step-3 deployment record) —
+**pushed as PR Sconce-Labs/corridor-contracts#16, CI green**; step 2 also landed
+`m3/beta9-toolchain` `2feb370` + CI pin fix `c429243` on corridor-circuits
+(PR #5, green) and the E2E fixture generator on corridor-sdk (PR #14, green).
 
 - **Vendored core**: `crates/ultrahonk_core` =
   [NethermindEth/ultrahonk-rust-verifier] `crates/ultrahonk-soroban-verifier`
@@ -186,10 +187,34 @@ sibling branch `m3/beta9-toolchain` `2feb370` on corridor-circuits.
     real circuit. `--skip` dropped from ci.yml/Makefile/README; **54 host
     tests** green, fmt + clippy clean. bb 0.87.0 also needs `jq` on PATH
     (it shells out for ACIR JSON parsing).
-- **Step 3 (next)**: upgrade local stellar CLI (≥ 25.2, ideally v28), deploy the
-  verifier to testnet with the real VK, `update_policy` `verifier` +
-  `vk_hash`, run the `enter()` E2E through the SDK, update the four
-  address-carrying places (§4 note above).
+- **Step 3 (done 2026-10-06)** — deployed and E2E-verified on testnet with
+  stellar-cli **28.0.0** (now installed locally; same commit the CI action
+  pins) under a fresh testnet-only identity `corridor-m3`
+  (`GBBGVXIQ…COGG`; the original `corridor` key `GATI44…` is not on this
+  machine): a fresh stack — verifier `CCUWJKEA…`, registry `CDNVUEYO…`,
+  attestation `CCB4AQDG…` — with the verifier constructor validating and
+  storing the real 1 760-byte VK (`vk_hash f994ec68…`, confirmed via
+  `vk_hash()` after deploy), and corridor `0x…04` registered with the
+  policy pinning that verifier + `vk_hash` (min_tier 3, min_cred_epoch 1,
+  accepted issuer = the fixture's deterministic key, auditor 0, tolerance
+  3600 s). The `enter()` E2E needed a **fresh proof**: `enter` checks the
+  `now` public input against ledger time, so the committed fixture (fixed
+  `now = 1 000 000`) can never replay on-chain —
+  `corridor-sdk/scripts/gen-testnet-fixture.ts` (PR Sconce-Labs/corridor-
+  sdk#14) regenerates the fixture with current timestamps (same
+  deterministic issuer key, byte-stable nonces). A bb 0.87.0 proof from it
+  went through the real pipeline **on-chain**: `enter` → `PassGranted`
+  (tag 2, passes 1), `is_cleared == true`, replay → `NullifierUsed` (#12),
+  single-bit-tampered proof → `ProofInvalid` (#11). All addresses/tx
+  hashes: `deployments/testnet.json` `m3RealVerifier`. Note: `stellar
+  contract invoke` v28 wants `--source-account` (not `--source`) and
+  JSON-quoted string elements in vector args; the old `corridor` key can
+  still swap the 09-10 mock stack with one `update_policy` call.
+- **Gotcha (step 2→3):** the first push of `m3/scaffold-verifier` silently
+  dropped `tests/circuits/*/target/` fixtures under the repo-wide
+  `**/target` gitignore rule — CI failed while local runs passed.
+  `0bd0320` re-includes exactly `proof`/`vk`/`public_inputs` (and adds the
+  MIT `license` field cargo-deny required on `ultrahonk-test-utils`).
 
 [NethermindEth/ultrahonk-rust-verifier]: https://github.com/NethermindEth/ultrahonk-rust-verifier
 
@@ -304,13 +329,12 @@ profile, deployed on testnet. Remaining is procedural:
 
 ## 8. Immediate next actions (engineering)
 
-1. **M3 step 3** — steps 1–2 are committed on `m3/scaffold-verifier`
-   (`6f275d4` + `3821160`): the vendored OZ-audited core + adapter, and the
-   re-proven circuit with committed fixtures that E2E-verify (see the M3
-   section in §4; circuit-side work on `m3/beta9-toolchain` `2feb370`). All
-   unpushed. Next: testnet deploy + `vk_hash` policy + `enter()` E2E (needs
-   local stellar CLI ≥ 25.2 — installed v23 lacks the SDK-28 spec-shaking
-   handshake).
+1. **Merge the three open M3 PRs** — contracts #16, circuits #5, sdk #14, all
+   CI-green. M3 steps 1–3 are done end to end (see the M3 section in §4); the
+   only remaining M3 follow-up is pointing the 2026-09-10 stack's policy at
+   the real verifier (one `update_policy` with the original `corridor` key,
+   `GATI44…` — not on this machine) or decommissioning that stack in favor of
+   the `m3RealVerifier` one.
 2. **M4** — `corridor.compact` simulator tests + Preprod deploy; trim
    `midnight/` to the issuer/admin flows.
 3. **M5** — issuer CLI: KYC result → `issueCredential`, with CSPRNG enforcement.

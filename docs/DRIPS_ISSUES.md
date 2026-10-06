@@ -3,7 +3,7 @@
 The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 `complexity: *` + `area: *`. Pick anything tagged `good first issue` to start.
 
-**75 open issues right now, 28 of them `good first issue`.**
+**80 open issues right now, 31 of them `good first issue`.**
 
 | Complexity | ~Drips points |
 |------------|--------------:|
@@ -30,6 +30,7 @@ The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 | 39 | chore: editorconfig + formatting config consistency across crates | low | **gfi**, area: infra |
 | 44 | chore: Makefile fmt target + doctor target verifying toolchain versions | low | **gfi**, area: infra |
 | 45 | test: set_min_cred_epoch idempotent at the same value | low | **gfi**, area: contracts |
+| 46 | docs: document the deployments/testnet.json schema + update procedure | low | **gfi**, area: docs |
 | 3 | Gas / resource benchmark harness for enter() | medium | milestone: M3, area: contracts |
 | 5 | Payout-push mode: enter() performs a gated token transfer | medium | milestone: M6, area: contracts |
 | 6 | Nullifier archival / state-rent design | medium | milestone: M6, area: contracts |
@@ -51,6 +52,7 @@ The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 | 6 | docs: rustdoc the helper functions in eligibility.nr | low | **gfi**, area: docs |
 | 13 | docs: document the vendored schnorr + poseidon pin rationale in the README | low | **gfi**, area: docs |
 | 14 | chore: add .editorconfig | low | **gfi**, area: infra |
+| 16 | chore: upstream the vendored schnorr beta.9 compatibility patch to noir-lang/schnorr | low | **gfi**, area: circuits |
 | 2 | Targeted single-credential revocation (on-Stellar IMT) — design + spike | high | milestone: M7, area: circuits |
 | 3 | In-circuit ECIES for auditor_blob | high | security, milestone: M7, area: circuits |
 | 7 | docs: README quick-start for contributors + toolchain pin section | medium | area: docs |
@@ -80,6 +82,7 @@ The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 | 20 | feat: examples/ — end-to-end issuance + local verification script | medium |  |
 | 21 | feat: simulatedEnter() — build the enter() invocation a wallet can sign | high |  |
 | 22 | feat: policy cache with TTL in SorobanReader | medium |  |
+| 26 | test: assert the SDK public-input encoding byte-matches the committed fixture's public_inputs file | medium | area: sdk |
 
 ### [corridor](https://github.com/Sconce-Labs/corridor/issues) — hub · web app · Midnight
 
@@ -89,6 +92,7 @@ The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 | 18 | web: add SRI to external static assets | low | **gfi**, area: frontend |
 | 19 | web: is_cleared checker — input validation + error states | low | **gfi**, area: frontend |
 | 20 | web: accessibility audit fixes batch | low | **gfi**, area: frontend |
+| 27 | docs: AUDIT.md — mark R2-C1 resolved now that M3 is merged to main | low | **gfi**, area: docs |
 | 2 | corridor.compact simulator tests | medium | milestone: M4, area: midnight |
 | 3 | corridor.compact: Preprod deploy + issuerEpoch read + midnight/ trim | medium | milestone: M4, area: midnight |
 | 5 | Holder flow in the web app (buildWitness → prove → enter) | high | milestone: M6, area: frontend |
@@ -105,6 +109,7 @@ The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 | 23 | docs: refresh the demo video script for the real verifier | low | area: docs |
 | 24 | midnight: simulator test — issuer registration flow | medium | area: midnight |
 | 25 | midnight: simulator tests — epoch monotonicity + control-secret auth | medium | area: midnight |
+| 28 | ops: tear down the 2026-09-10 mock stack after update_policy (needs the original corridor operator key) | low | blocked, area: contracts |
 
 ---
 

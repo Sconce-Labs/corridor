@@ -200,9 +200,9 @@ After a contract redeploy, update `web/src/config.ts` **and**
 
 Corridor participates in the **[Stellar Drips Wave](https://www.drips.network/wave/stellar)**:
 contributors solve labeled issues during monthly sprints and earn from an
-SDF-funded pool. **80 scoped issues are open across the repos** — rustdoc,
-boundary tests, CI jobs, docs, small features — 31 of them tagged
-`good first issue`.
+SDF-funded pool. **~80 scoped issues are open across the repos** — rustdoc,
+boundary tests, CI jobs, docs, small features — roughly 30 of them tagged
+`good first issue`. (Live counts: [`docs/DRIPS_ISSUES.md`](./docs/DRIPS_ISSUES.md).)
 
 | Where to start | Good for |
 |----------------|----------|

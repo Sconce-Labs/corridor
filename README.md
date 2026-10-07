@@ -129,13 +129,13 @@ Record: [`corridor-contracts/deployments/testnet.json`](https://github.com/Sconc
 
 Real-proof E2E: [`enter` tx `1ba4f264…9ca2`](https://stellar.expert/explorer/testnet/tx/1ba4f264914c94a3c424814fa1793706085302b64477e387ecc9f7967bf39ca2) → `PassGranted`.
 
-**Legacy stack (2026-09-10) — mock verifier, pending `update_policy` swap:**
+**Legacy stack (2026-09-10) — migrated to the real verifier on 2026-10-07:**
 
 | Contract | Address |
 |----------|---------|
 | `corridor_registry` | [`CDGMQ24E…XJ6`](https://stellar.expert/explorer/testnet/contract/CDGMQ24E6OIBZB3EKJN5TUA5POYE6D5FNBL2II6SRLTYF32TE4HIEXJ6) |
 | `corridor_attestation` | [`CCHWKVRC…L4K`](https://stellar.expert/explorer/testnet/contract/CCHWKVRCEKPJHEXREP5SCZ4TEKNBFYEFYA2VR3SET5AMG4WOC76LDL4K) |
-| `verifier_mock` (placeholder) | [`CBN7N7AT…K46Y`](https://stellar.expert/explorer/testnet/contract/CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y) |
+| `verifier_mock` (tests only — no corridor uses it since 2026-10-07) | [`CBN7N7AT…K46Y`](https://stellar.expert/explorer/testnet/contract/CBN7N7AT7CPAA7MBIAULEBY3GIV7NNB3XPNEUJSIAHFIM5BJ7GIGK46Y) |
 
 ---
 

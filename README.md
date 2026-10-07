@@ -35,8 +35,9 @@ corridor — without re-uploading documents and without revealing who you are.
 *(If the player above doesn't load, [open the video directly](./assets/demo.mp4).)*
 Recorded against the **live** deployment — the contract addresses, policy
 data, pass count, and the `is_cleared` clearance check are all real reads and
-a real write against Stellar testnet, not mocked screens. *(Recorded before M3;
-a refresh showing the real on-chain proof path is [tracked here](https://github.com/Sconce-Labs/corridor/issues/23).)*
+a real write against Stellar testnet, not mocked screens. Recorded after M3:
+the demo corridor runs the real on-chain verifier, and the pre-filled pass was
+granted by a real zero-knowledge proof.
 
 ---
 

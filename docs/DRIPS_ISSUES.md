@@ -3,7 +3,7 @@
 The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 `complexity: *` + `area: *`. Pick anything tagged `good first issue` to start.
 
-**80 open issues right now, 31 of them `good first issue`.**
+**79 open issues right now, 31 of them `good first issue`.**
 
 | Complexity | ~Drips points |
 |------------|--------------:|
@@ -109,7 +109,6 @@ The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 | 23 | docs: refresh the demo video script for the real verifier | low | area: docs |
 | 24 | midnight: simulator test — issuer registration flow | medium | area: midnight |
 | 25 | midnight: simulator tests — epoch monotonicity + control-secret auth | medium | area: midnight |
-| 28 | ops: tear down the 2026-09-10 mock stack after update_policy (needs the original corridor operator key) | low | blocked, area: contracts |
 
 ---
 

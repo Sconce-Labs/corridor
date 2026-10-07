@@ -3,6 +3,7 @@ import { Logo } from "./Logo";
 import {
   CONTRACTS,
   DEMO_CORRIDOR_ID,
+  DEMO_NULLIFIER,
   LINKS,
   NETWORK,
   stellarExpert,
@@ -98,7 +99,7 @@ const STEPS = [
   },
   {
     h: "Stellar attests",
-    p: "corridor_attestation.enter() binds the proof to the on-chain policy, calls the policy's verifier, burns the nullifier once, and records a pass. The policy binding is live on testnet; the UltraHonk verifier is a mock until milestone M3.",
+    p: "corridor_attestation.enter() binds the proof to the on-chain policy, calls the policy's verifier, burns the nullifier once, and records a pass. Every corridor on testnet runs the real UltraHonk verifier — real proofs grant passes.",
   },
   {
     h: "Payout gates",
@@ -157,9 +158,10 @@ function LiveOnTestnet() {
         <h2>Live on Stellar testnet</h2>
         <p className="sub">
           The attestation stack is deployed and the{" "}
-          <code>register → enter → is_cleared</code> flow runs on-chain. Proof
-          verification is a mock today — the real UltraHonk verifier is milestone
-          M3. Read straight from {NETWORK.rpcUrl.replace("https://", "")}.
+          <code>register → enter → is_cleared</code> flow runs on-chain. Every
+          registered corridor verifies <strong>real UltraHonk proofs</strong> —
+          the vendored, OpenZeppelin-audited core, proofs from bb 0.87.0. Read
+          straight from {NETWORK.rpcUrl.replace("https://", "")}.
         </p>
 
         <div className="grid-2">
@@ -169,8 +171,8 @@ function LiveOnTestnet() {
               <AddrRow label="corridor_registry" id={CONTRACTS.registry} />
               <AddrRow label="corridor_attestation" id={CONTRACTS.attestation} />
               <AddrRow
-                label="verifier_mock (M3 placeholder)"
-                id={CONTRACTS.verifierMock}
+                label="ultrahonk_verifier (real proofs)"
+                id={CONTRACTS.verifier}
               />
             </div>
             <p className="muted" style={{ marginTop: 14 }}>
@@ -180,7 +182,7 @@ function LiveOnTestnet() {
           </div>
 
           <div className="card">
-            <h3>Demo corridor #4</h3>
+            <h3>Demo corridor</h3>
             {policy.state === "loading" && (
               <p className="muted">
                 <span className="spin" /> reading policy…
@@ -244,7 +246,7 @@ function AddrRow({ label, id }: { label: string; id: string }) {
 
 function ClearanceChecker() {
   const [corridor, setCorridor] = useState(DEMO_CORRIDOR_ID);
-  const [nullifier, setNullifier] = useState("");
+  const [nullifier, setNullifier] = useState(DEMO_NULLIFIER);
   const [busy, setBusy] = useState(false);
   const [out, setOut] = useState<
     | null
@@ -276,7 +278,8 @@ function ClearanceChecker() {
         <p className="sub">
           The exact call a corridor operator makes before releasing funds:{" "}
           <code>corridor_attestation.is_cleared(corridor_id, nullifier)</code>.
-          Read-only, no wallet. Try the pre-filled demo values.
+          Read-only, no wallet. The pre-filled values are a real pass granted
+          by a real zero-knowledge proof.
         </p>
 
         <div className="grid-2">
@@ -339,15 +342,11 @@ function ClearanceChecker() {
           <div className="card">
             <h3>What this proves</h3>
             <p className="muted">
-              A <code>true</code> means a proof was presented for this corridor
-              and that nullifier was burned, with the policy binding enforced
-              on-chain — accepted issuer, minimum tier, revocation floor, auditor
-              key, time-skew window.
-            </p>
-            <p className="notice">
-              On testnet the ZK proof itself is checked by a <em>mock</em>
-              verifier (milestone M3). So `true` here attests the policy binding
-              and one-time use — not yet the cryptographic proof.
+              A <code>true</code> means a real UltraHonk proof was verified
+              on-chain for this corridor under the pinned verification key, the
+              policy binding was enforced — accepted issuer, minimum tier,
+              revocation floor, auditor key, time-skew window — and that
+              nullifier was burned for one-time use.
             </p>
             <p className="muted">
               It does <em>not</em> reveal who. The nullifier is{" "}
@@ -457,7 +456,8 @@ function Footer() {
         </div>
         <div className="foot-bottom">
           <span className="muted">
-            Pre-MVP research build · Apache-2.0 · not audited · testnet only
+            Research build · real on-chain proofs (verifier core OZ-audited) ·
+            Apache-2.0 · testnet only
           </span>
           <span className="built">
             Built with <span className="heart">love</span> for Stellar

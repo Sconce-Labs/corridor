@@ -163,6 +163,38 @@ What a Stellar observer sees: corridor C granted a pass tagged `"remittance"`
 holder's Stellar address (submitted via the tx-relayer, §6), tier, issuer, or
 identity.
 
+The same flow as a diagram (M3 state — every corridor verifies real proofs):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor H as Holder (device)
+    participant SDK as @corridor/verify
+    participant BB as Local prover (bb 0.87.0)
+    participant R as Tx relayer (fee sponsor)
+    participant A as corridor_attestation
+    participant Reg as corridor_registry
+    participant V as ultrahonk_verifier
+
+    H->>SDK: corridor C, credential, issuer signature
+    SDK->>Reg: get_policy(C) — read
+    Reg-->>SDK: Policy { min_tier, accepted_issuers, verifier, vk_hash, … }
+    SDK->>SDK: buildWitness — re-runs every circuit check locally
+    SDK->>BB: witness
+    BB-->>SDK: UltraHonk proof (14,592 B) + 9 public inputs
+    SDK->>R: enter(C, proof, public_inputs)
+    R->>A: enter(C, proof, public_inputs) — sponsored tx
+    A->>Reg: get_policy(C)
+    Reg-->>A: Policy
+    A->>A: pi ≡ policy (corridor_id, min_tier, issuer accepted, epoch floor, auditor, time-skew)
+    A->>V: verify(policy.vk_hash, proof, public_inputs)
+    V-->>A: ok — transcript → sumcheck → Shplemini → pairing
+    A->>A: burn Nullifier(C, n) — replay reverts NullifierUsed
+    A->>A: store PassRecord{ tag, ledger, ts, auditor_blob }; Passes += 1
+    A-->>H: PassGranted(C, tag, n)
+    Note over H,A: An observer sees a pass, a tag, a counter and a burned nullifier — never the holder
+```
+
 ### 3.4 Revocation
 
 Two mechanisms, no accumulator:

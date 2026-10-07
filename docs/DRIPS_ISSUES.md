@@ -3,7 +3,7 @@
 The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 `complexity: *` + `area: *`. Pick anything tagged `good first issue` to start.
 
-**79 open issues right now, 31 of them `good first issue`.**
+**77 open issues right now, 31 of them `good first issue`.** (Snapshot 2026-10-07; #21 #23 closed.)
 
 | Complexity | ~Drips points |
 |------------|--------------:|
@@ -104,9 +104,7 @@ The backlog is **live as GitHub issues**, per repo, labelled `drips` +
 | 15 | web: holder flow — connect the local prover service | high | area: frontend |
 | 16 | web: holder flow — enter() submission + status display | medium | area: frontend |
 | 17 | web: CSP follow-ups — nonce-based script policy | medium | area: frontend |
-| 21 | docs: ARCHITECTURE.md — mermaid sequence diagram of enter() | medium | area: docs |
 | 22 | docs: FAQ page derived from the audit assumptions | medium | area: docs |
-| 23 | docs: refresh the demo video script for the real verifier | low | area: docs |
 | 24 | midnight: simulator test — issuer registration flow | medium | area: midnight |
 | 25 | midnight: simulator tests — epoch monotonicity + control-secret auth | medium | area: midnight |
 

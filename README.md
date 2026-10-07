@@ -25,7 +25,7 @@ corridor — without re-uploading documents and without revealing who you are.
 
 ---
 
-## 67-second walkthrough
+## Walkthrough (80s)
 
 <video src="https://raw.githubusercontent.com/Sconce-Labs/corridor/main/assets/demo.mp4"
        controls muted playsinline

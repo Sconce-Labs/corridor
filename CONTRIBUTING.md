@@ -28,6 +28,21 @@ Each repo has its own `CONTRIBUTING.md` with setup, gates and invariants.
 - Apache-2.0; by contributing you agree your work is licensed under it.
 - We follow the [Code of Conduct](./CODE_OF_CONDUCT.md).
 
+## Where docs live (one canonical home per doc)
+
+Each document has exactly one owning repo. The hub owns project-level docs
+(`ARCHITECTURE`, `PROPOSAL`, `ROADMAP`, `HANDOFF`, `AUDIT`, `AUDIT.md`-adjacent
+records, `DRIPS.md`, `docs/DRIPS_ISSUES.md`); `corridor-contracts` owns the ABI
+(`ABI.md`) and per-contract references; `corridor-circuits` owns circuit docs;
+`corridor-sdk` owns API references.
+
+When linking across repos — in any README, doc or issue — use the **full
+`https://github.com/Sconce-Labs/<repo>/blob/main/<path>` URL**. Never use
+`../`-style relative paths that escape the repo: they break in forks, PR file
+views, and some renderers. Anchors must be verified against the target page's
+current headings. The hub CI `Doc links` job validates repo-relative links;
+cross-repo links are validated manually at merge time.
+
 ## Drips Wave
 
 Corridor participates in the **Stellar Drips Wave** — see

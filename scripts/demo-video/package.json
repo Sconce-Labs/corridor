@@ -1,0 +1,12 @@
+{
+  "name": "corridor-demo-video",
+  "private": true,
+  "description": "Recording pipeline deps for the corridor demo video (playwright drives the live site)",
+  "type": "module",
+  "scripts": {
+    "record": "node record.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.63.0"
+  }
+}

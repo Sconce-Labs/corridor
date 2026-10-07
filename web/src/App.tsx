@@ -368,7 +368,7 @@ function ClearanceChecker() {
 const OBSERVERS = [
   {
     who: "A Stellar observer",
-    sees: "A pass was granted on corridor C, a tag index, an aggregate counter, a burned nullifier. Proofs arrive via a fee-sponsoring relayer, so not the holder's account.",
+    sees: "A pass was granted on corridor C, a tag index, an aggregate counter, a burned nullifier. Proofs will arrive via a fee-sponsoring relayer (target — M6), so not the holder's account.",
   },
   {
     who: "A Midnight observer",

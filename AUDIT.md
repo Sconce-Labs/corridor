@@ -210,6 +210,15 @@ soundness and `is_cleared` is not a security boundary. Pitch accordingly.
 
 ### R2-C1 — On-chain ZK verification is a mock; the testnet deployment has no cryptographic soundness
 
+> **Resolved 2026-10-07.** The text below describes the finding as it stood at
+> audit time. The real UltraHonk verifier is now live and **both** testnet
+> stacks run it: corridor `0x…04`'s policy was swapped via `update_policy`,
+> corridor `0x…05` was registered with the real verifier, and a fresh real
+> bb 0.87.0 proof was granted on the legacy attestation (`PassGranted`,
+> `is_cleared == true`, replay → `NullifierUsed`). `verifier_mock` is host-test
+> only and backs no corridor. Evidence txs:
+> `corridor-contracts/deployments/testnet.json` → `migrationToRealVerifier`.
+
 `verifier_mock.verify()` returns `true` (default) or whatever `set_result` was
 last given — and `set_result` **has no auth** (anyone can call it). The deployed
 testnet stack (`CBN7N7AT…` verifier) uses it. Therefore, **today, on testnet**:
@@ -458,7 +467,7 @@ independently.
 | R2-M6 | Poseidon2 conformance only pinned arity-2 | ✅ **done** — arity-4 (statement) + arity-5 (auditor blob) now pinned explicitly in `conformance.nr`, `poseidon.test.ts`, and `poseidon_conformance`; `ABI.md` corrected. |
 | R2-M7 | `decode` accepted non-canonical numeric words | ✅ **done** — `word_to_u32`/`u64` return `Result` and error on non-zero high bytes → `BadPublicInputs`; `ABI.md` corrected; +3 tests. Defence in depth (circuit already range-constrains). |
 | R2-L2 | `assertStrongSecret` never called | ✅ **done** — `buildWitness` enforces it on `cred.holderSecret`. |
-| R2-C1 | Real UltraHonk verifier | 🟡 **M3 done, awaiting PR merge + mock-stack teardown** — core vendored (OZ-audited), real proof verified on-chain (PassGranted / NullifierUsed / ProofInvalid all exercised on testnet); 09-10 mock stack still serves its old corridors |
+| R2-C1 | Real UltraHonk verifier | ✅ **resolved 2026-10-07** — M3 merged to main in all repos; the 09-10 stack was migrated the same week (corridor 0x…04 policy swapped to the real verifier via `update_policy`, corridor 0x…05 registered with it, fresh bb 0.87.0 proof granted on the legacy attestation: PassGranted / is_cleared true / replay NullifierUsed). No corridor on testnet is backed by a mock verifier. See `corridor-contracts/deployments/testnet.json` → `migrationToRealVerifier` |
 | R2-M2 | `get_policy` / `enter` extend the `Policy` TTL | ⏳ next contracts PR |
 | R2-M1 | SDK helper: diff Midnight `issuerEpoch` vs Stellar floors + warn | ⏳ M5 (issuer tooling) |
 | R2-M5 | In-circuit ECIES to `auditor_pubkey` (real auditor opening) | ⏳ M7 |
